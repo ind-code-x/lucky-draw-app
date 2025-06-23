@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lucky Draw Entry</title>
+</head>
+<body>
+  <h1>🎉 Lucky Draw Entry Form</h1>
+  {% if error %}
+    <p style="color: red;">{{ error }}</p>
+  {% endif %}
+  {% if link %}
+    <p>✅ Subscription successful!</p>
+    <p>Your lucky draw link:</p>
+    <a href="{{ link }}">{{ link }}</a>
+  {% else %}
+    <form method="POST">
+      <label>Name: <input type="text" name="name" required></label><br><br>
+      <label>Email: <input type="email" name="email" required></label><br><br>
+      <label><input type="checkbox" name="subscribe"> ₹99 Subscribe to Enter Lucky Draw</label><br><br>
+      <button type="submit">Subscribe & Get My Link</button>
+    </form>
+  {% endif %}
+</body>
+</html>
