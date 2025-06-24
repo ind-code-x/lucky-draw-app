@@ -55,6 +55,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
       if (isLogin) {
         await login(formData.email, formData.password);
         setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+        // The redirect will happen automatically when the user state changes
       } else {
         await register(formData.name, formData.email, formData.password);
         setMessage({ 

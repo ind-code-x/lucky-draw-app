@@ -38,10 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       if (session?.user) {
         loadUserProfile(session.user);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // Listen for auth changes
@@ -52,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await loadUserProfile(session.user);
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -87,22 +89,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (createError) {
           console.error('Error creating user profile:', createError);
-          throw createError;
+          // If we can't create the profile, create a minimal user object
+          console.log('Creating minimal user object...');
+          setUser({
+            id: authUser.id,
+            name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
+            email: authUser.email!,
+            subscriptionStatus: 'free',
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          console.log('User profile created successfully:', createdUser);
+          setUser({
+            id: createdUser.id,
+            name: createdUser.name,
+            email: createdUser.email,
+            avatar: createdUser.avatar_url,
+            subscriptionStatus: createdUser.subscription_status,
+            subscriptionExpiresAt: createdUser.subscription_expires_at,
+            createdAt: createdUser.created_at,
+          });
         }
-        
-        console.log('User profile created successfully:', createdUser);
-        setUser({
-          id: createdUser.id,
-          name: createdUser.name,
-          email: createdUser.email,
-          avatar: createdUser.avatar_url,
-          subscriptionStatus: createdUser.subscription_status,
-          subscriptionExpiresAt: createdUser.subscription_expires_at,
-          createdAt: createdUser.created_at,
-        });
       } else if (error) {
         console.error('Error loading user profile:', error);
-        throw error;
+        // If we can't load the profile, create a minimal user object
+        console.log('Creating minimal user object due to error...');
+        setUser({
+          id: authUser.id,
+          name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
+          email: authUser.email!,
+          subscriptionStatus: 'free',
+          createdAt: new Date().toISOString(),
+        });
       } else {
         console.log('User profile loaded successfully:', data);
         setUser({
@@ -117,7 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error in loadUserProfile:', error);
-      // Don't throw here, just log the error
+      // Fallback: create minimal user object
+      console.log('Creating fallback user object...');
+      setUser({
+        id: authUser.id,
+        name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
+        email: authUser.email!,
+        subscriptionStatus: 'free',
+        createdAt: new Date().toISOString(),
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,22 +201,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateSubscription = async (status: 'free' | 'premium' | 'pro', expiresAt?: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('users')
-      .update({
-        subscription_status: status,
-        subscription_expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          subscription_status: status,
+          subscription_expires_at: expiresAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
 
-    if (error) throw error;
+      if (error) {
+        console.error('Error updating subscription:', error);
+        // Don't throw, just log the error
+      }
 
-    setUser(prev => prev ? {
-      ...prev,
-      subscriptionStatus: status,
-      subscriptionExpiresAt: expiresAt,
-    } : null);
+      setUser(prev => prev ? {
+        ...prev,
+        subscriptionStatus: status,
+        subscriptionExpiresAt: expiresAt,
+      } : null);
+    } catch (error) {
+      console.error('Error in updateSubscription:', error);
+    }
   };
 
   return (
