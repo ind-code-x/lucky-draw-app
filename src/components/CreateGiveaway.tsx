@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, X, Calendar, Trophy, Target, Share2, Upload, Send } from 'lucide-react';
+import { ArrowLeft, Plus, X, Calendar, Trophy, Target, Share2, Upload, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { useGiveaways } from '../contexts/GiveawayContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SocialPlatform, EntryMethod } from '../types';
@@ -19,6 +19,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [autoPost, setAutoPost] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [postingStatus, setPostingStatus] = useState<string>('');
   
   const [formData, setFormData] = useState({
     title: '',
@@ -121,16 +122,24 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
   };
 
   const handleSocialConnect = (platform: string, credentials: any) => {
-    setConnectedAccounts(prev => [
-      ...prev.filter(acc => acc.platform !== platform),
-      { platform, connected: true, ...credentials }
-    ]);
+    if (credentials.connected === false) {
+      // Remove the account
+      setConnectedAccounts(prev => prev.filter(acc => acc.platform !== platform));
+    } else {
+      // Add or update the account
+      setConnectedAccounts(prev => [
+        ...prev.filter(acc => acc.platform !== platform),
+        { platform, connected: true, ...credentials }
+      ]);
+    }
   };
 
   const postToSocialMedia = async (giveaway: any) => {
-    if (!autoPost || !posterUrl) return null;
+    if (!autoPost) return null;
 
     setPosting(true);
+    setPostingStatus('Preparing to post...');
+    
     const socialManager = SocialMediaManager.getInstance();
 
     try {
@@ -145,44 +154,77 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
         throw new Error(`No connected account found for ${giveaway.platform}`);
       }
 
+      setPostingStatus(`Posting to ${platforms.find(p => p.id === giveaway.platform)?.name}...`);
+
       let result;
       switch (giveaway.platform) {
         case 'instagram':
           result = await socialManager.postToInstagram({
             caption: postContent,
-            imageUrl: posterUrl,
+            imageUrl: posterUrl || 'https://via.placeholder.com/1080x1080',
             accessToken: connectedAccount.accessToken,
           });
           break;
         case 'facebook':
           result = await socialManager.postToFacebook({
             message: postContent,
-            imageUrl: posterUrl,
+            imageUrl: posterUrl || 'https://via.placeholder.com/1080x1080',
             accessToken: connectedAccount.accessToken,
-            pageId: connectedAccount.pageId,
+            pageId: connectedAccount.pageId || 'demo_page',
           });
           break;
         case 'twitter':
           result = await socialManager.postToTwitter({
-            text: postContent,
+            text: postContent.substring(0, 280), // Twitter character limit
             imageUrl: posterUrl,
-            apiKey: connectedAccount.apiKey,
-            apiSecret: connectedAccount.apiSecret,
+            apiKey: connectedAccount.apiKey || 'demo_key',
+            apiSecret: connectedAccount.apiSecret || 'demo_secret',
             accessToken: connectedAccount.accessToken,
-            accessTokenSecret: connectedAccount.accessTokenSecret,
+            accessTokenSecret: connectedAccount.accessTokenSecret || 'demo_token_secret',
+          });
+          break;
+        case 'tiktok':
+          result = await socialManager.postToTikTok({
+            text: postContent,
+            videoUrl: posterUrl,
+            accessToken: connectedAccount.accessToken,
+          });
+          break;
+        case 'youtube':
+          result = await socialManager.postToYouTube({
+            title: giveaway.title,
+            description: postContent,
+            thumbnailUrl: posterUrl,
+            accessToken: connectedAccount.accessToken,
+          });
+          break;
+        case 'whatsapp':
+          result = await socialManager.postToWhatsApp({
+            message: postContent,
+            imageUrl: posterUrl,
+            phoneNumber: connectedAccount.phoneNumber || 'demo_number',
           });
           break;
         default:
           throw new Error(`Posting to ${giveaway.platform} is not yet supported`);
       }
 
-      return result;
-    } catch (error) {
+      if (result.success) {
+        setPostingStatus('Posted successfully!');
+        return result;
+      } else {
+        throw new Error(result.error || 'Failed to post');
+      }
+    } catch (error: any) {
       console.error('Social media posting error:', error);
-      alert(`Failed to post to ${giveaway.platform}. The giveaway was created but not posted.`);
+      setPostingStatus('Posting failed, but giveaway was created');
+      // Don't throw the error - we still want to create the giveaway
       return null;
     } finally {
-      setPosting(false);
+      setTimeout(() => {
+        setPosting(false);
+        setPostingStatus('');
+      }, 2000);
     }
   };
 
@@ -195,19 +237,31 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
         posterUrl,
       };
 
-      // Post to social media if enabled
-      let socialPostResult = null;
-      if (autoPost) {
-        socialPostResult = await postToSocialMedia(giveawayData);
+      try {
+        // Post to social media if enabled
+        let socialPostResult = null;
+        if (autoPost) {
+          socialPostResult = await postToSocialMedia(giveawayData);
+        }
+
+        // Create giveaway with social post ID if successful
+        await createGiveaway({
+          ...giveawayData,
+          socialPostId: socialPostResult?.postId,
+        });
+
+        // Show success message
+        if (autoPost && socialPostResult?.success) {
+          alert(`Giveaway created and posted to ${platforms.find(p => p.id === formData.platform)?.name} successfully!`);
+        } else {
+          alert('Giveaway created successfully!');
+        }
+
+        onBack();
+      } catch (error) {
+        console.error('Error creating giveaway:', error);
+        alert('Failed to create giveaway. Please try again.');
       }
-
-      // Create giveaway with social post ID if successful
-      createGiveaway({
-        ...giveawayData,
-        socialPostId: socialPostResult?.postId,
-      });
-
-      onBack();
     }
   };
 
@@ -485,7 +539,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
               {/* Poster Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Giveaway Poster
+                  Giveaway Poster (Optional)
                 </label>
                 <PosterUpload
                   onUpload={setPosterUrl}
@@ -508,7 +562,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
                   <div>
                     <h3 className="font-semibold text-gray-900">Auto-post to Social Media</h3>
                     <p className="text-sm text-gray-600">
-                      Automatically post your giveaway when you create it
+                      Automatically post your giveaway when you create it (Demo Mode)
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -526,11 +580,24 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
                   <div className="bg-white rounded-lg p-4 border border-purple-200">
                     <h4 className="font-medium text-gray-900 mb-2">✨ What will happen:</h4>
                     <ul className="text-sm text-gray-700 space-y-1">
-                      <li>• Your giveaway poster will be posted to {platforms.find(p => p.id === formData.platform)?.name}</li>
+                      <li>• Your giveaway will be posted to {platforms.find(p => p.id === formData.platform)?.name} (Demo)</li>
                       <li>• Entry instructions will be included in the caption</li>
                       <li>• Relevant hashtags will be added automatically</li>
-                      <li>• You can edit the post after it's published</li>
+                      <li>• This is a demo - no real posts will be made</li>
                     </ul>
+                    
+                    {connectedAccounts.find(acc => acc.platform === formData.platform) ? (
+                      <div className="mt-3 flex items-center space-x-2 text-green-600">
+                        <CheckCircle size={16} />
+                        <span className="text-sm font-medium">Ready to post to {platforms.find(p => p.id === formData.platform)?.name}</span>
+                      </div>
+                    ) : (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          ⚠️ Please connect your {platforms.find(p => p.id === formData.platform)?.name} account above to enable auto-posting.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -594,7 +661,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
                     <h3 className="font-semibold text-gray-900 mb-3">Social Media Posting</h3>
                     <div className="bg-white p-4 rounded-lg border">
                       <p className="text-sm text-green-700">
-                        ✅ Will auto-post to {platforms.find(p => p.id === formData.platform)?.name} when created
+                        ✅ Will auto-post to {platforms.find(p => p.id === formData.platform)?.name} when created (Demo Mode)
                       </p>
                     </div>
                   </div>
@@ -631,8 +698,8 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
               >
                 {posting ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Creating & Posting...</span>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Creating...</span>
                   </>
                 ) : (
                   <>
@@ -643,6 +710,16 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
               </button>
             )}
           </div>
+
+          {/* Posting Status */}
+          {posting && postingStatus && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Loader2 size={16} className="animate-spin text-blue-600" />
+                <span className="text-sm text-blue-800">{postingStatus}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
