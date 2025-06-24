@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twitter Authentication</title>
+</head>
+<body>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        
+        if (error) {
+            console.error('Twitter auth error:', error);
+            window.close();
+        } else if (code) {
+            // Exchange code for access token using PKCE
+            // In a real implementation, this would be done server-side
+            localStorage.setItem('twitter_access_token', 'demo_twitter_token_' + Date.now());
+            localStorage.setItem('twitter_user_id', 'demo_twitter_user_' + Date.now());
+            
+            window.close();
+        }
+    </script>
+</body>
+</html>

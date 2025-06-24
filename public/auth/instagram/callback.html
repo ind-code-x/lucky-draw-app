@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Instagram Authentication</title>
+</head>
+<body>
+    <script>
+        // Extract authorization code from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        
+        if (error) {
+            console.error('Instagram auth error:', error);
+            window.close();
+        } else if (code) {
+            // Exchange code for access token
+            // In a real implementation, this would be done server-side
+            // For demo purposes, we'll simulate success
+            localStorage.setItem('instagram_access_token', 'demo_instagram_token_' + Date.now());
+            localStorage.setItem('instagram_user_id', 'demo_instagram_user_' + Date.now());
+            
+            // Close the popup
+            window.close();
+        }
+    </script>
+</body>
+</html>
