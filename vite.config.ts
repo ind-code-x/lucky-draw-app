@@ -8,7 +8,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   preview: {
-    allowedHosts: ['satikajagath.onrender.com'], // 👈 Add this line
+    allowedHosts: ['www.satikajagath.co.in'], // 👈 Add this line
   },
 });
 
