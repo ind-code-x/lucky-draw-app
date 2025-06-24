@@ -7,4 +7,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  preview: {
+    allowedHosts: ['lucky-draw-app-5.onrender.com'], // 👈 Add this line
+  },
 });
+
