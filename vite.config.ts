@@ -8,7 +8,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   preview: {
-    allowedHosts: ['lucky-draw-app-6.onrender.com'], // 👈 Add this line
+    allowedHosts: ['satikajagath.onrender.com'], // 👈 Add this line
   },
 });
 
