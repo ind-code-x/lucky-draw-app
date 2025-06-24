@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gift, Mail, Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Gift, Mail, Lock, User, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AuthPageProps {
@@ -10,6 +10,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -48,14 +49,45 @@ export function AuthPage({ onBack }: AuthPageProps) {
     if (!validateForm()) return;
 
     setLoading(true);
+    setMessage(null);
+    
     try {
       if (isLogin) {
         await login(formData.email, formData.password);
+        setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
       } else {
         await register(formData.name, formData.email, formData.password);
+        setMessage({ 
+          type: 'success', 
+          text: 'Account created successfully! You can now sign in.' 
+        });
+        // Switch to login mode after successful registration
+        setTimeout(() => {
+          setIsLogin(true);
+          setFormData({ name: '', email: formData.email, password: '' });
+          setMessage(null);
+        }, 2000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      
+      if (error.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.message.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists';
+        } else if (error.message.includes('Password should be at least 6 characters')) {
+          errorMessage = 'Password must be at least 6 characters long';
+        } else if (error.message.includes('Unable to validate email address')) {
+          errorMessage = 'Please enter a valid email address';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -65,6 +97,9 @@ export function AuthPage({ onBack }: AuthPageProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    if (message) {
+      setMessage(null);
     }
   };
 
@@ -100,6 +135,22 @@ export function AuthPage({ onBack }: AuthPageProps) {
 
           {/* Form */}
           <div className="p-8">
+            {/* Message Display */}
+            {message && (
+              <div className={`mb-6 p-4 rounded-lg flex items-center space-x-2 ${
+                message.type === 'success' 
+                  ? 'bg-green-50 border border-green-200 text-green-800' 
+                  : 'bg-red-50 border border-red-200 text-red-800'
+              }`}>
+                {message.type === 'success' ? (
+                  <CheckCircle size={20} className="flex-shrink-0" />
+                ) : (
+                  <AlertCircle size={20} className="flex-shrink-0" />
+                )}
+                <span className="text-sm">{message.text}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {!isLogin && (
                 <div>
@@ -116,6 +167,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
                         errors.name ? 'border-red-300' : 'border-gray-300'
                       }`}
                       placeholder="Enter your full name"
+                      disabled={loading}
                     />
                   </div>
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
@@ -136,6 +188,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
                       errors.email ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter your email"
+                    disabled={loading}
                   />
                 </div>
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
@@ -155,11 +208,13 @@ export function AuthPage({ onBack }: AuthPageProps) {
                       errors.password ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter your password"
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={loading}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -192,9 +247,11 @@ export function AuthPage({ onBack }: AuthPageProps) {
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setErrors({});
+                  setMessage(null);
                   setFormData({ name: '', email: '', password: '' });
                 }}
                 className="mt-1 text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                disabled={loading}
               >
                 {isLogin ? 'Create Account' : 'Sign In'}
               </button>
@@ -205,7 +262,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
         {/* Demo Notice */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-blue-800 text-sm text-center">
-            <strong>Demo Mode:</strong> Use any email and password to explore the platform
+            <strong>Demo Mode:</strong> Create an account or use any email and password to explore the platform
           </p>
         </div>
       </div>

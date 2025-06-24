@@ -46,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
@@ -59,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (authUser: User) => {
     try {
+      console.log('Loading user profile for:', authUser.email);
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -67,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error && error.code === 'PGRST116') {
         // User doesn't exist, create profile
+        console.log('Creating new user profile...');
         const newUser = {
           id: authUser.id,
           email: authUser.email!,
@@ -80,8 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .select()
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating user profile:', createError);
+          throw createError;
+        }
         
+        console.log('User profile created successfully:', createdUser);
         setUser({
           id: createdUser.id,
           name: createdUser.name,
@@ -92,8 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: createdUser.created_at,
         });
       } else if (error) {
+        console.error('Error loading user profile:', error);
         throw error;
       } else {
+        console.log('User profile loaded successfully:', data);
         setUser({
           id: data.id,
           name: data.name,
@@ -105,12 +116,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error('Error in loadUserProfile:', error);
+      // Don't throw here, just log the error
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    console.log('Attempting to register user:', email);
+    
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -120,16 +134,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+
+    console.log('Registration successful:', data);
+    
+    // If user is immediately confirmed (no email confirmation required)
+    if (data.user && !data.user.email_confirmed_at) {
+      console.log('User registered but needs email confirmation');
+      // You might want to show a message about email confirmation
+    }
   };
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log('Attempting to login user:', email);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+
+    console.log('Login successful:', data);
   };
 
   const logout = async () => {
