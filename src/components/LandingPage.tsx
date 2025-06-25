@@ -1,11 +1,104 @@
-import React from 'react';
-import { Gift, Users, Trophy, BarChart3, Zap, Shield, Globe, Sparkles, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Gift, Users, Trophy, BarChart3, Zap, Shield, Globe, Sparkles, ExternalLink, Calendar, Home } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Giveaway } from '../types';
 
 interface LandingPageProps {
   onGetStarted: () => void;
 }
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
+  const [allGiveaways, setAllGiveaways] = useState<Giveaway[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAllGiveaways();
+  }, []);
+
+  const loadAllGiveaways = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('giveaways')
+        .select(`
+          *,
+          entries (*),
+          users (name)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const transformedGiveaways: Giveaway[] = (data || []).map(g => ({
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        prize: g.prize,
+        platform: g.platform as any,
+        status: g.status as any,
+        startDate: g.start_date,
+        endDate: g.end_date,
+        entryMethods: g.entry_methods || [],
+        entries: (g.entries || []).map((e: any) => ({
+          id: e.id,
+          giveawayId: e.giveaway_id,
+          participantName: e.participant_name,
+          participantEmail: e.participant_email,
+          participantHandle: e.participant_handle,
+          platform: e.platform as any,
+          verified: e.verified,
+          entryDate: e.entry_date,
+        })),
+        posterUrl: g.poster_url,
+        socialPostId: g.social_post_id,
+        userId: g.user_id,
+        createdAt: g.created_at,
+        updatedAt: g.updated_at,
+        organizer: g.users?.name || 'Anonymous',
+      }));
+
+      // Filter out expired giveaways
+      const activeGiveaways = transformedGiveaways.filter(g => {
+        const endDate = new Date(g.endDate);
+        const now = new Date();
+        return endDate > now;
+      });
+
+      setAllGiveaways(activeGiveaways);
+    } catch (error) {
+      console.error('Error loading giveaways:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getTimeRemaining = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diff = end.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Ended';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h left`;
+    return 'Ending soon';
+  };
+
+  const handleGiveawayClick = (giveawayId: string) => {
+    window.open(`?giveaway=${giveawayId}`, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
       {/* Header */}
@@ -97,8 +190,117 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Live Giveaways Section */}
       <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              🔥 Live Giveaways
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Join these amazing giveaways created by our community members
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading giveaways...</p>
+            </div>
+          ) : allGiveaways.length === 0 ? (
+            <div className="text-center py-12">
+              <Gift size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No active giveaways yet</h3>
+              <p className="text-gray-600 mb-6">Be the first to create an amazing giveaway!</p>
+              <button
+                onClick={onGetStarted}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+              >
+                Create First Giveaway
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {allGiveaways.slice(0, 6).map((giveaway) => (
+                <div
+                  key={giveaway.id}
+                  onClick={() => handleGiveawayClick(giveaway.id)}
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 cursor-pointer overflow-hidden"
+                >
+                  {giveaway.posterUrl ? (
+                    <img
+                      src={giveaway.posterUrl}
+                      alt={giveaway.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center">
+                      <Gift size={48} className="text-white" />
+                    </div>
+                  )}
+                  
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                        {getTimeRemaining(giveaway.endDate)}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        by {giveaway.organizer}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {giveaway.title}
+                    </h3>
+                    
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      {giveaway.description}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Trophy size={16} />
+                        <span className="font-medium">{giveaway.prize}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Users size={16} />
+                        <span>{giveaway.entries.length} entries</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={12} />
+                          <span>Ends {formatDate(giveaway.endDate)}</span>
+                        </div>
+                        <span className="text-purple-600 font-medium">Enter Now →</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {allGiveaways.length > 6 && (
+            <div className="text-center mt-12">
+              <p className="text-gray-600 mb-4">
+                {allGiveaways.length - 6} more giveaways available
+              </p>
+              <button
+                onClick={onGetStarted}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+              >
+                View All Giveaways
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -164,7 +366,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -213,8 +415,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {[
-              { number: '10,000+', label: 'Giveaways Created' },
-              { number: '1M+', label: 'Participants Engaged' },
+              { number: `${allGiveaways.length}+`, label: 'Active Giveaways' },
+              { number: `${allGiveaways.reduce((sum, g) => sum + g.entries.length, 0)}+`, label: 'Participants Engaged' },
               { number: '98%', label: 'Success Rate' }
             ].map((stat, index) => (
               <div key={index} className="text-white">

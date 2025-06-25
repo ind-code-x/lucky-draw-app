@@ -21,6 +21,10 @@ function AppContent() {
     setGiveawayId(id);
   };
 
+  const handleNavigateHome = () => {
+    setCurrentPage('landing');
+  };
+
   // Check if we're viewing a public giveaway
   const urlParams = new URLSearchParams(window.location.search);
   const publicGiveawayId = urlParams.get('giveaway');
@@ -57,19 +61,19 @@ function AppContent() {
         <Navbar onNavigate={handleNavigation} currentPage={currentPage} />
         
         {currentPage === 'dashboard' && (
-          <Dashboard onNavigate={handleNavigation} />
+          <Dashboard onNavigate={handleNavigation} onNavigateHome={handleNavigateHome} />
         )}
         
         {currentPage === 'create' && (
-          <CreateGiveaway onBack={() => handleNavigation('dashboard')} />
+          <CreateGiveaway onBack={() => handleNavigation('dashboard')} onNavigateHome={handleNavigateHome} />
         )}
         
         {currentPage === 'analytics' && (
-          <Analytics />
+          <Analytics onNavigateHome={handleNavigateHome} />
         )}
 
         {currentPage === 'subscription' && (
-          <SubscriptionPlans />
+          <SubscriptionPlans onNavigateHome={handleNavigateHome} />
         )}
       </div>
     </GiveawayProvider>

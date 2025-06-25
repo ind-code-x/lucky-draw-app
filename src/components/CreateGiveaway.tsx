@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, X, Calendar, Trophy, Target, Share2, Send, Copy, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, X, Calendar, Trophy, Target, Share2, Send, Copy, CheckCircle, Home } from 'lucide-react';
 import { useGiveaways } from '../contexts/GiveawayContext';
 import { useAuth } from '../contexts/AuthContext';
-import { SocialPlatform, EntryMethod } from '../types';
+import { EntryMethod } from '../types';
 import { PosterUpload } from './PosterUpload';
 
 interface CreateGiveawayProps {
   onBack: () => void;
+  onNavigateHome: () => void;
 }
 
-export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
+export function CreateGiveaway({ onBack, onNavigateHome }: CreateGiveawayProps) {
   const { createGiveaway } = useGiveaways();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -20,21 +21,11 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
     title: '',
     description: '',
     prize: '',
-    platform: 'instagram' as SocialPlatform,
     startDate: '',
     endDate: '',
     entryMethods: [] as EntryMethod[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const platforms = [
-    { id: 'instagram', name: 'Instagram', icon: '📷', color: 'bg-pink-500' },
-    { id: 'facebook', name: 'Facebook', icon: '👥', color: 'bg-blue-600' },
-    { id: 'twitter', name: 'Twitter', icon: '🐦', color: 'bg-blue-400' },
-    { id: 'tiktok', name: 'TikTok', icon: '🎵', color: 'bg-black' },
-    { id: 'youtube', name: 'YouTube', icon: '📺', color: 'bg-red-600' },
-    { id: 'whatsapp', name: 'WhatsApp', icon: '💬', color: 'bg-green-500' },
-  ];
 
   const entryMethodTypes = [
     { id: 'follow', name: 'Follow Account', description: 'Follow your social media account' },
@@ -91,7 +82,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
         type: type as any,
         description: method.description,
         required: true,
-        platform: formData.platform,
+        platform: 'instagram', // Default platform since we removed platform selection
       };
       setFormData(prev => ({
         ...prev,
@@ -121,6 +112,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
       try {
         const giveawayData = {
           ...formData,
+          platform: 'instagram' as const, // Default platform
           userId: user!.id,
           status: 'active' as const,
           posterUrl,
@@ -157,12 +149,18 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
         break;
       case 'instagram':
-        // Instagram doesn't support direct URL sharing, so copy to clipboard
+        window.open('https://www.instagram.com/', '_blank');
         navigator.clipboard.writeText(`${text} ${url}`);
         alert('Text copied! You can now paste it in your Instagram post or story.');
         break;
+      case 'linkedin':
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
+        break;
       case 'whatsapp':
         window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank');
+        break;
+      case 'telegram':
+        window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
         break;
     }
   };
@@ -180,13 +178,22 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Dashboard</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onBack}
+              className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 transition-colors"
+            >
+              <ArrowLeft size={20} />
+              <span>Back to Dashboard</span>
+            </button>
+            <button
+              onClick={onNavigateHome}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors"
+            >
+              <Home size={20} />
+              <span>Home</span>
+            </button>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Create New Giveaway</h1>
           <div></div>
         </div>
@@ -279,29 +286,14 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
                 {errors.prize && <p className="text-red-500 text-sm mt-1">{errors.prize}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Target Platform *
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {platforms.map((platform) => (
-                    <button
-                      key={platform.id}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, platform: platform.id as SocialPlatform }))}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        formData.platform === platform.id
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className={`w-12 h-12 ${platform.color} rounded-lg flex items-center justify-center text-white text-xl mb-2 mx-auto`}>
-                        {platform.icon}
-                      </div>
-                      <p className="font-medium text-gray-900">{platform.name}</p>
-                    </button>
-                  ))}
-                </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">💡 Giveaway Tips</h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Make your title catchy and include the main prize</li>
+                  <li>• Clearly describe what participants can win</li>
+                  <li>• Add any terms and conditions in the description</li>
+                  <li>• Your giveaway will be hosted on your website with a shareable URL</li>
+                </ul>
               </div>
             </div>
           )}
@@ -460,7 +452,7 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
                     <div className="space-y-2 text-sm">
                       <p><span className="font-medium">Title:</span> {formData.title}</p>
                       <p><span className="font-medium">Prize:</span> {formData.prize}</p>
-                      <p><span className="font-medium">Platform:</span> {platforms.find(p => p.id === formData.platform)?.name}</p>
+                      <p><span className="font-medium">Platform:</span> Web-based Giveaway</p>
                     </div>
                   </div>
                   
@@ -534,44 +526,65 @@ export function CreateGiveaway({ onBack }: CreateGiveawayProps) {
 
                 <div className="space-y-4">
                   <h3 className="font-semibold text-gray-900">Share on Social Media:</h3>
-                  <div className="flex flex-wrap justify-center gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <button
                       onClick={() => shareToSocialMedia('twitter')}
-                      className="bg-blue-400 text-white px-6 py-3 rounded-lg hover:bg-blue-500 transition-colors flex items-center space-x-2"
+                      className="bg-blue-400 text-white px-4 py-3 rounded-lg hover:bg-blue-500 transition-colors flex items-center justify-center space-x-2"
                     >
                       <span>🐦</span>
-                      <span>Share on Twitter</span>
+                      <span>Twitter</span>
                     </button>
                     <button
                       onClick={() => shareToSocialMedia('facebook')}
-                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
                     >
                       <span>👥</span>
-                      <span>Share on Facebook</span>
+                      <span>Facebook</span>
                     </button>
                     <button
                       onClick={() => shareToSocialMedia('instagram')}
-                      className="bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600 transition-colors flex items-center space-x-2"
+                      className="bg-pink-500 text-white px-4 py-3 rounded-lg hover:bg-pink-600 transition-colors flex items-center justify-center space-x-2"
                     >
                       <span>📷</span>
-                      <span>Share on Instagram</span>
+                      <span>Instagram</span>
+                    </button>
+                    <button
+                      onClick={() => shareToSocialMedia('linkedin')}
+                      className="bg-blue-700 text-white px-4 py-3 rounded-lg hover:bg-blue-800 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <span>💼</span>
+                      <span>LinkedIn</span>
                     </button>
                     <button
                       onClick={() => shareToSocialMedia('whatsapp')}
-                      className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2"
+                      className="bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center space-x-2"
                     >
                       <span>💬</span>
-                      <span>Share on WhatsApp</span>
+                      <span>WhatsApp</span>
+                    </button>
+                    <button
+                      onClick={() => shareToSocialMedia('telegram')}
+                      className="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <span>✈️</span>
+                      <span>Telegram</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-green-200">
+                <div className="mt-8 pt-6 border-t border-green-200 flex justify-center space-x-4">
                   <button
                     onClick={onBack}
                     className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors"
                   >
                     Back to Dashboard
+                  </button>
+                  <button
+                    onClick={onNavigateHome}
+                    className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+                  >
+                    <Home size={16} />
+                    <span>Go to Home</span>
                   </button>
                 </div>
               </div>
