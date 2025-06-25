@@ -65,55 +65,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Loading user profile for:', authUser.email);
       
+      // First, ensure the user profile exists
+      await ensureUserProfile(authUser);
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .single();
 
-      if (error && error.code === 'PGRST116') {
-        // User doesn't exist, create profile
-        console.log('Creating new user profile...');
-        const newUser = {
-          id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
-          subscription_status: 'free' as const,
-        };
-
-        const { data: createdUser, error: createError } = await supabase
-          .from('users')
-          .insert([newUser])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating user profile:', createError);
-          // If we can't create the profile, create a minimal user object
-          console.log('Creating minimal user object...');
-          setUser({
-            id: authUser.id,
-            name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
-            email: authUser.email!,
-            subscriptionStatus: 'free',
-            createdAt: new Date().toISOString(),
-          });
-        } else {
-          console.log('User profile created successfully:', createdUser);
-          setUser({
-            id: createdUser.id,
-            name: createdUser.name,
-            email: createdUser.email,
-            avatar: createdUser.avatar_url,
-            subscriptionStatus: createdUser.subscription_status,
-            subscriptionExpiresAt: createdUser.subscription_expires_at,
-            createdAt: createdUser.created_at,
-          });
-        }
-      } else if (error) {
+      if (error) {
         console.error('Error loading user profile:', error);
-        // If we can't load the profile, create a minimal user object
-        console.log('Creating minimal user object due to error...');
+        // Create minimal user object as fallback
         setUser({
           id: authUser.id,
           name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
@@ -136,7 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error in loadUserProfile:', error);
       // Fallback: create minimal user object
-      console.log('Creating fallback user object...');
       setUser({
         id: authUser.id,
         name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
@@ -146,6 +108,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const ensureUserProfile = async (authUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .upsert({
+          id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
+          subscription_status: 'free',
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('Error ensuring user profile:', error);
+      }
+    } catch (error) {
+      console.error('Error in ensureUserProfile:', error);
     }
   };
 
@@ -169,10 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     console.log('Registration successful:', data);
     
-    // If user is immediately confirmed (no email confirmation required)
-    if (data.user && !data.user.email_confirmed_at) {
-      console.log('User registered but needs email confirmation');
-      // You might want to show a message about email confirmation
+    // If user is immediately confirmed, ensure profile exists
+    if (data.user && data.user.email_confirmed_at) {
+      await ensureUserProfile(data.user);
     }
   };
 
@@ -213,14 +196,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error updating subscription:', error);
-        // Don't throw, just log the error
+      } else {
+        setUser(prev => prev ? {
+          ...prev,
+          subscriptionStatus: status,
+          subscriptionExpiresAt: expiresAt,
+        } : null);
       }
-
-      setUser(prev => prev ? {
-        ...prev,
-        subscriptionStatus: status,
-        subscriptionExpiresAt: expiresAt,
-      } : null);
     } catch (error) {
       console.error('Error in updateSubscription:', error);
     }
