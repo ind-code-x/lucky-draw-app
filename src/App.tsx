@@ -60,10 +60,6 @@ function AppContent() {
       <div className="min-h-screen bg-gray-50">
         <Navbar onNavigate={handleNavigation} currentPage={currentPage} />
         
-        {currentPage === 'landing' && (
-          <LandingPage onGetStarted={() => handleNavigation('create')} />
-        )}
-        
         {currentPage === 'dashboard' && (
           <Dashboard onNavigate={handleNavigation} onNavigateHome={handleNavigateHome} />
         )}

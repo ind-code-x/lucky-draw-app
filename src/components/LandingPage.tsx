@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, Users, Trophy, Heart, Share2, ExternalLink, Calendar, Search, Filter, Clock, Star } from 'lucide-react';
+import { Gift, Users, Trophy, BarChart3, Zap, Shield, Globe, Sparkles, ExternalLink, Calendar, Home } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Giveaway } from '../types';
 
@@ -10,9 +10,6 @@ interface LandingPageProps {
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [allGiveaways, setAllGiveaways] = useState<Giveaway[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'ending'>('newest');
-  const [likedGiveaways, setLikedGiveaways] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAllGiveaways();
@@ -20,24 +17,17 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
   const loadAllGiveaways = async () => {
     try {
-      setLoading(true);
-      
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
           *,
           entries (*),
-          users!inner(name)
+          users (name)
         `)
         .eq('status', 'active')
-        .gte('end_date', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading giveaways:', error);
-        setAllGiveaways([]);
-        return;
-      }
+      if (error) throw error;
 
       const transformedGiveaways: Giveaway[] = (data || []).map(g => ({
         id: g.id,
@@ -67,13 +57,27 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         organizer: g.users?.name || 'Anonymous',
       }));
 
-      setAllGiveaways(transformedGiveaways);
+      // Filter out expired giveaways
+      const activeGiveaways = transformedGiveaways.filter(g => {
+        const endDate = new Date(g.endDate);
+        const now = new Date();
+        return endDate > now;
+      });
+
+      setAllGiveaways(activeGiveaways);
     } catch (error) {
       console.error('Error loading giveaways:', error);
-      setAllGiveaways([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   const getTimeRemaining = (endDate: string) => {
@@ -86,8 +90,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h`;
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h left`;
     return 'Ending soon';
   };
 
@@ -95,87 +99,31 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     window.open(`?giveaway=${giveawayId}`, '_blank');
   };
 
-  const handleLike = (giveawayId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setLikedGiveaways(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(giveawayId)) {
-        newSet.delete(giveawayId);
-      } else {
-        newSet.add(giveawayId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleShare = (giveaway: Giveaway, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const url = `${window.location.origin}?giveaway=${giveaway.id}`;
-    const text = `🎉 Check out this amazing giveaway: ${giveaway.title}! Win ${giveaway.prize}! 🏆`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: giveaway.title,
-        text: text,
-        url: url,
-      });
-    } else {
-      navigator.clipboard.writeText(`${text} ${url}`);
-      alert('Giveaway link copied to clipboard!');
-    }
-  };
-
-  const filteredAndSortedGiveaways = React.useMemo(() => {
-    let filtered = allGiveaways;
-    
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = allGiveaways.filter(giveaway =>
-        giveaway.title.toLowerCase().includes(searchLower) ||
-        giveaway.prize.toLowerCase().includes(searchLower) ||
-        giveaway.organizer?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    switch (sortBy) {
-      case 'popular':
-        filtered.sort((a, b) => b.entries.length - a.entries.length);
-        break;
-      case 'ending':
-        filtered.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
-        break;
-      case 'newest':
-      default:
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-    }
-
-    return filtered;
-  }, [allGiveaways, searchTerm, sortBy]);
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3">
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
-                  <Gift size={24} className="text-white" />
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  GiveawayHub
-                </span>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Gift size={32} className="text-purple-600" />
+              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                GiveawayHub
+              </span>
             </div>
-
             <div className="flex items-center space-x-4">
+              <a
+                href="?giveaway=demo"
+                className="text-purple-600 hover:text-purple-700 transition-colors flex items-center space-x-1"
+              >
+                <span>View Demo Giveaway</span>
+                <ExternalLink size={16} />
+              </a>
               <button
                 onClick={onGetStarted}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-full font-medium hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                Create Giveaway
+                Get Started
               </button>
             </div>
           </div>
@@ -183,229 +131,151 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            Discover Amazing
-            <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-              Giveaways
-            </span>
-          </h1>
-          <p className="text-xl text-purple-100 mb-8 max-w-3xl mx-auto">
-            Enter exciting giveaways from creators and brands worldwide. Win amazing prizes and discover new communities.
-          </p>
-          
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <div className="relative">
-              <Search size={24} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search for giveaways..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 text-lg rounded-xl border-0 focus:ring-4 focus:ring-white/20 focus:outline-none text-gray-900 placeholder-gray-500"
-              />
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-yellow-400">{allGiveaways.length}+</div>
-              <div className="text-purple-100">Active Giveaways</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-yellow-400">
-                {allGiveaways.reduce((sum, g) => sum + g.entries.length, 0)}+
-              </div>
-              <div className="text-purple-100">Total Entries</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-yellow-400">98%</div>
-              <div className="text-purple-100">Success Rate</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Filters Section */}
-      <section className="bg-white border-b border-gray-200 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {filteredAndSortedGiveaways.length} Giveaways Found
-              </h2>
-              <div className="flex items-center space-x-2">
-                <Filter size={16} className="text-gray-500" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="popular">Most Popular</option>
-                  <option value="ending">Ending Soon</option>
-                </select>
+      <section className="relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+          <div className="text-center">
+            <div className="flex justify-center mb-8">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-full shadow-2xl animate-pulse">
+                <Gift size={48} className="text-white" />
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Giveaways Grid */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-pulse">
-                  <div className="h-48 bg-gray-300"></div>
-                  <div className="p-6">
-                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-4"></div>
-                    <div className="h-8 bg-gray-300 rounded"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filteredAndSortedGiveaways.length === 0 ? (
-            <div className="text-center py-20">
-              <Gift size={80} className="mx-auto text-gray-300 mb-6" />
-              <h3 className="text-3xl font-bold text-gray-900 mb-4">
-                {searchTerm ? 'No giveaways found' : 'No active giveaways yet'}
-              </h3>
-              <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">
-                {searchTerm 
-                  ? 'Try adjusting your search terms or browse all giveaways'
-                  : 'Be the first to create an amazing giveaway and start building your community!'
-                }
-              </p>
-              {searchTerm ? (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="bg-gray-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors mr-4"
-                >
-                  Clear Search
-                </button>
-              ) : null}
+            
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              Create Amazing{' '}
+              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Giveaways
+              </span>
+              <br />
+              That Run on Your Website
+            </h1>
+            
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+              Build engaging giveaways that participants enter directly on your website. 
+              Get a shareable URL to promote across all social media platforms and track everything from one dashboard.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={onGetStarted}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-full text-lg font-medium hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                Start Creating Free
+              </button>
+              <a
+                href="?giveaway=demo"
+                className="border-2 border-purple-200 text-purple-600 px-8 py-4 rounded-full text-lg font-medium hover:bg-purple-50 transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>View Demo</span>
+                <ExternalLink size={20} />
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-20 left-10 animate-bounce">
+          <div className="bg-yellow-400 p-3 rounded-full shadow-lg">
+            <Trophy size={24} className="text-white" />
+          </div>
+        </div>
+        <div className="absolute top-32 right-20 animate-bounce delay-300">
+          <div className="bg-green-400 p-3 rounded-full shadow-lg">
+            <Users size={24} className="text-white" />
+          </div>
+        </div>
+        <div className="absolute bottom-20 left-20 animate-bounce delay-700">
+          <div className="bg-pink-400 p-3 rounded-full shadow-lg">
+            <Sparkles size={24} className="text-white" />
+          </div>
+        </div>
+      </section>
+
+      {/* Live Giveaways Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              🔥 Live Giveaways
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Join these amazing giveaways created by our community members
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading giveaways...</p>
+            </div>
+          ) : allGiveaways.length === 0 ? (
+            <div className="text-center py-12">
+              <Gift size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No active giveaways yet</h3>
+              <p className="text-gray-600 mb-6">Be the first to create an amazing giveaway!</p>
+              <button
+                onClick={onGetStarted}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
               >
                 Create First Giveaway
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredAndSortedGiveaways.map((giveaway) => (
+              {allGiveaways.slice(0, 6).map((giveaway) => (
                 <div
                   key={giveaway.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
                   onClick={() => handleGiveawayClick(giveaway.id)}
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 cursor-pointer overflow-hidden"
                 >
-                  {/* Giveaway Image */}
-                  <div className="relative h-48 bg-gradient-to-br from-purple-100 to-blue-100">
-                    {giveaway.posterUrl ? (
-                      <img
-                        src={giveaway.posterUrl}
-                        alt={giveaway.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Trophy size={48} className="text-purple-400" />
-                      </div>
-                    )}
-                    
-                    {/* Time Remaining Badge */}
-                    <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      <Clock size={14} className="inline mr-1" />
-                      {getTimeRemaining(giveaway.endDate)}
+                  {giveaway.posterUrl ? (
+                    <img
+                      src={giveaway.posterUrl}
+                      alt={giveaway.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center">
+                      <Gift size={48} className="text-white" />
                     </div>
-
-                    {/* Like Button */}
-                    <button
-                      onClick={(e) => handleLike(giveaway.id, e)}
-                      className={`absolute top-4 left-4 p-2 rounded-full transition-colors ${
-                        likedGiveaways.has(giveaway.id)
-                          ? 'bg-red-500 text-white'
-                          : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
-                      }`}
-                    >
-                      <Heart size={16} className={likedGiveaways.has(giveaway.id) ? 'fill-current' : ''} />
-                    </button>
-                  </div>
-
-                  {/* Giveaway Content */}
+                  )}
+                  
                   <div className="p-6">
-                    {/* Organizer */}
-                    <div className="flex items-center space-x-2 mb-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        {giveaway.organizer?.charAt(0).toUpperCase() || 'A'}
-                      </div>
-                      <span className="text-sm text-gray-600 font-medium">{giveaway.organizer}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                        {getTimeRemaining(giveaway.endDate)}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        by {giveaway.organizer}
+                      </span>
                     </div>
-
-                    {/* Title */}
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                    
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
                       {giveaway.title}
                     </h3>
-
-                    {/* Prize */}
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Trophy size={16} className="text-yellow-500" />
-                      <span className="text-sm font-semibold text-gray-900 line-clamp-1">{giveaway.prize}</span>
-                    </div>
-
-                    {/* Entry Methods */}
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {giveaway.entryMethods.slice(0, 2).map((method) => (
-                        <span
-                          key={method.id}
-                          className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-1 rounded-full"
-                        >
-                          {method.description.split(' ')[0]}
-                        </span>
-                      ))}
-                      {giveaway.entryMethods.length > 2 && (
-                        <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
-                          +{giveaway.entryMethods.length - 2}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <div className="flex items-center space-x-1">
-                        <Users size={14} />
+                    
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      {giveaway.description}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Trophy size={16} />
+                        <span className="font-medium">{giveaway.prize}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Users size={16} />
                         <span>{giveaway.entries.length} entries</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar size={14} />
-                        <span>Ends {new Date(giveaway.endDate).toLocaleDateString()}</span>
-                      </div>
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGiveawayClick(giveaway.id);
-                        }}
-                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all flex items-center justify-center space-x-2"
-                      >
-                        <Trophy size={16} />
-                        <span>Enter Now</span>
-                      </button>
-                      <button
-                        onClick={(e) => handleShare(giveaway, e)}
-                        className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <Share2 size={16} className="text-gray-600" />
-                      </button>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={12} />
+                          <span>Ends {formatDate(giveaway.endDate)}</span>
+                        </div>
+                        <span className="text-purple-600 font-medium">Enter Now →</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -413,64 +283,190 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           )}
 
-          {/* CTA */}
-          {filteredAndSortedGiveaways.length > 0 && (
-            <div className="text-center mt-16">
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-12 border border-purple-200">
-                <Star size={64} className="mx-auto text-yellow-500 mb-6" />
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  Ready to create your own giveaway?
-                </h3>
-                <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-                  Join thousands of creators and businesses who use GiveawayHub to grow their audience.
-                </p>
-                <button
-                  onClick={onGetStarted}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all text-lg"
-                >
-                  Start Your Giveaway
-                </button>
-              </div>
+          {allGiveaways.length > 6 && (
+            <div className="text-center mt-12">
+              <p className="text-gray-600 mb-4">
+                {allGiveaways.length - 6} more giveaways available
+              </p>
+              <button
+                onClick={onGetStarted}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+              >
+                View All Giveaways
+              </button>
             </div>
           )}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
+      {/* Features Section */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <Gift size={32} className="text-purple-400" />
-                <span className="text-2xl font-bold">GiveawayHub</span>
-              </div>
-              <p className="text-gray-400 text-lg mb-6 max-w-md">
-                The ultimate platform for discovering and creating amazing giveaways.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Platform</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Browse Giveaways</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Create Giveaway</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">How it Works</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-              </ul>
-            </div>
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Complete End-to-End Giveaway Platform
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Everything runs on your website. Create, share, and manage giveaways with a single shareable URL.
+            </p>
           </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400">&copy; 2024 GiveawayHub. All rights reserved.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Globe className="w-8 h-8" />,
+                title: 'Hosted Giveaway Pages',
+                description: 'Each giveaway gets a beautiful, mobile-friendly page that participants can access directly.',
+                color: 'bg-blue-500'
+              },
+              {
+                icon: <Zap className="w-8 h-8" />,
+                title: 'One-Click Sharing',
+                description: 'Get a shareable URL to promote on Instagram, Facebook, Twitter, TikTok, and anywhere else.',
+                color: 'bg-yellow-500'
+              },
+              {
+                icon: <Users className="w-8 h-8" />,
+                title: 'Direct Entry Collection',
+                description: 'Participants enter directly on your website. No third-party redirects or complicated flows.',
+                color: 'bg-green-500'
+              },
+              {
+                icon: <BarChart3 className="w-8 h-8" />,
+                title: 'Real-Time Analytics',
+                description: 'Track entries, engagement, and performance with detailed insights and reporting.',
+                color: 'bg-purple-500'
+              },
+              {
+                icon: <Trophy className="w-8 h-8" />,
+                title: 'Fair Winner Selection',
+                description: 'Transparent random winner selection with verification and announcement tools.',
+                color: 'bg-pink-500'
+              },
+              {
+                icon: <Shield className="w-8 h-8" />,
+                title: 'Built-in Fraud Protection',
+                description: 'Automatic duplicate detection and entry validation to ensure fair participation.',
+                color: 'bg-indigo-500'
+              }
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
+              >
+                <div className={`${feature.color} p-3 rounded-full w-fit mb-4`}>
+                  {React.cloneElement(feature.icon, { className: 'w-8 h-8 text-white' })}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-xl text-gray-600">
+              Simple 3-step process to launch your giveaway
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                step: '1',
+                title: 'Create Your Giveaway',
+                description: 'Set up your prize, entry requirements, and upload an eye-catching poster.',
+                color: 'bg-purple-500'
+              },
+              {
+                step: '2',
+                title: 'Get Your Shareable URL',
+                description: 'Receive a beautiful giveaway page URL that you can share anywhere.',
+                color: 'bg-blue-500'
+              },
+              {
+                step: '3',
+                title: 'Share & Track',
+                description: 'Promote your giveaway URL on social media and watch entries roll in.',
+                color: 'bg-green-500'
+              }
+            ].map((step, index) => (
+              <div key={index} className="text-center">
+                <div className={`${step.color} w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-6`}>
+                  {step.step}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">{step.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 bg-gradient-to-r from-purple-600 to-blue-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            {[
+              { number: `${allGiveaways.length}+`, label: 'Active Giveaways' },
+              { number: `${allGiveaways.reduce((sum, g) => sum + g.entries.length, 0)}+`, label: 'Participants Engaged' },
+              { number: '98%', label: 'Success Rate' }
+            ].map((stat, index) => (
+              <div key={index} className="text-white">
+                <div className="text-4xl lg:text-5xl font-bold mb-2">{stat.number}</div>
+                <div className="text-xl text-purple-100">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            Ready to Launch Your First Giveaway?
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            Join thousands of creators and businesses who use GiveawayHub to grow their audience.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={onGetStarted}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-full text-lg font-medium hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              Start Your First Giveaway
+            </button>
+            <a
+              href="?giveaway=demo"
+              className="border-2 border-purple-200 text-purple-600 px-8 py-4 rounded-full text-lg font-medium hover:bg-purple-50 transition-colors flex items-center justify-center space-x-2"
+            >
+              <span>Try the Demo</span>
+              <ExternalLink size={20} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
+              <Gift size={24} className="text-purple-400" />
+              <span className="text-lg font-bold">GiveawayHub</span>
+            </div>
+            <div className="text-gray-400 text-center md:text-right">
+              <p>&copy; 2024 GiveawayHub. All rights reserved.</p>
+              <p className="text-sm mt-1">Complete giveaway platform for creators and businesses</p>
+            </div>
           </div>
         </div>
       </footer>

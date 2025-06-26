@@ -140,10 +140,39 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error('User not authenticated');
 
     try {
+      console.log('Creating giveaway with user ID:', user.id);
+      
+      // Verify user exists in database before creating giveaway
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.log('User not found in database, creating profile...');
+        // Create user profile if it doesn't exist
+        const { error: createUserError } = await supabase
+          .from('users')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            subscription_status: 'free',
+          }, {
+            onConflict: 'id'
+          });
+
+        if (createUserError) {
+          console.error('Error creating user profile:', createUserError);
+          throw new Error('Failed to create user profile');
+        }
+      }
+
       const { data, error } = await supabase
         .from('giveaways')
         .insert([{
-          user_id: giveawayData.userId,
+          user_id: user.id,
           title: giveawayData.title,
           description: giveawayData.description,
           prize: giveawayData.prize,
@@ -158,7 +187,10 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating giveaway:', error);
+        throw error;
+      }
 
       const newGiveaway: Giveaway = {
         id: data.id,
