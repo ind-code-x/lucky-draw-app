@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Gift, Users, Trophy, Heart, Share2, ExternalLink, Calendar, Home, Search, Filter, TrendingUp, Clock, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Gift, Users, Trophy, Heart, Share2, ExternalLink, Calendar, Search, Filter, Clock, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Giveaway } from '../types';
 
@@ -9,7 +9,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [allGiveaways, setAllGiveaways] = useState<Giveaway[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'ending'>('newest');
   const [likedGiveaways, setLikedGiveaways] = useState<Set<string>>(new Set());
@@ -22,48 +22,21 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     try {
       setLoading(true);
       
-      // Simplified query for better performance
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
-          id,
-          title,
-          description,
-          prize,
-          platform,
-          status,
-          start_date,
-          end_date,
-          entry_methods,
-          poster_url,
-          created_at,
+          *,
+          entries (*),
           users!inner(name)
         `)
         .eq('status', 'active')
-        .gte('end_date', new Date().toISOString()) // Only get non-expired giveaways
-        .order('created_at', { ascending: false })
-        .limit(20); // Reduced limit for faster loading
+        .gte('end_date', new Date().toISOString())
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error loading giveaways:', error);
         setAllGiveaways([]);
         return;
-      }
-
-      // Get entry counts in a separate optimized query
-      const giveawayIds = (data || []).map(g => g.id);
-      let entryCounts: Record<string, number> = {};
-
-      if (giveawayIds.length > 0) {
-        const { data: entryCountData } = await supabase
-          .from('entries')
-          .select('giveaway_id')
-          .in('giveaway_id', giveawayIds);
-
-        entryCounts = (entryCountData || []).reduce((acc, entry) => {
-          acc[entry.giveaway_id] = (acc[entry.giveaway_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
       }
 
       const transformedGiveaways: Giveaway[] = (data || []).map(g => ({
@@ -76,13 +49,21 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         startDate: g.start_date,
         endDate: g.end_date,
         entryMethods: g.entry_methods || [],
-        entries: [], // Don't load entries for performance
-        entriesCount: entryCounts[g.id] || 0,
+        entries: (g.entries || []).map((e: any) => ({
+          id: e.id,
+          giveawayId: e.giveaway_id,
+          participantName: e.participant_name,
+          participantEmail: e.participant_email,
+          participantHandle: e.participant_handle,
+          platform: e.platform as any,
+          verified: e.verified,
+          entryDate: e.entry_date,
+        })),
         posterUrl: g.poster_url,
-        socialPostId: '',
-        userId: '',
+        socialPostId: g.social_post_id,
+        userId: g.user_id,
         createdAt: g.created_at,
-        updatedAt: g.created_at,
+        updatedAt: g.updated_at,
         organizer: g.users?.name || 'Anonymous',
       }));
 
@@ -144,11 +125,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     }
   };
 
-  const filteredAndSortedGiveaways = useMemo(() => {
-    if (!searchTerm && sortBy === 'newest') {
-      return allGiveaways; // Return as-is for best performance
-    }
-
+  const filteredAndSortedGiveaways = React.useMemo(() => {
     let filtered = allGiveaways;
     
     if (searchTerm) {
@@ -162,14 +139,14 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
     switch (sortBy) {
       case 'popular':
-        filtered.sort((a, b) => (b.entriesCount || 0) - (a.entriesCount || 0));
+        filtered.sort((a, b) => b.entries.length - a.entries.length);
         break;
       case 'ending':
         filtered.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
         break;
       case 'newest':
       default:
-        // Already sorted by created_at desc from query
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
     }
 
@@ -240,7 +217,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
             <div className="text-center">
               <div className="text-3xl md:text-4xl font-bold text-yellow-400">
-                {allGiveaways.reduce((sum, g) => sum + (g.entriesCount || 0), 0)}+
+                {allGiveaways.reduce((sum, g) => sum + g.entries.length, 0)}+
               </div>
               <div className="text-purple-100">Total Entries</div>
             </div>
@@ -335,7 +312,6 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                         src={giveaway.posterUrl}
                         alt={giveaway.title}
                         className="w-full h-full object-cover"
-                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -404,7 +380,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <div className="flex items-center space-x-1">
                         <Users size={14} />
-                        <span>{giveaway.entriesCount || 0} entries</span>
+                        <span>{giveaway.entries.length} entries</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar size={14} />
