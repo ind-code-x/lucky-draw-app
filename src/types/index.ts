@@ -24,6 +24,7 @@ export interface Giveaway {
   posterUrl?: string;
   socialPostId?: string;
   organizer?: string;
+  entriesCount?: number; // For performance optimization
 }
 
 export interface Entry {

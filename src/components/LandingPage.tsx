@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Gift, Users, Trophy, Heart, Share2, ExternalLink, Calendar, Home, Search, Filter, TrendingUp, Clock, Star, MapPin, Tag } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Gift, Users, Trophy, Heart, Share2, ExternalLink, Calendar, Home, Search, Filter, TrendingUp, Clock, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Giveaway } from '../types';
 
@@ -23,12 +23,22 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
-          *,
-          entries (*),
-          users (name)
+          id,
+          title,
+          description,
+          prize,
+          platform,
+          status,
+          start_date,
+          end_date,
+          entry_methods,
+          poster_url,
+          created_at,
+          users!inner(name)
         `)
         .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit to improve performance
 
       if (error) throw error;
 
@@ -42,21 +52,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         startDate: g.start_date,
         endDate: g.end_date,
         entryMethods: g.entry_methods || [],
-        entries: (g.entries || []).map((e: any) => ({
-          id: e.id,
-          giveawayId: e.giveaway_id,
-          participantName: e.participant_name,
-          participantEmail: e.participant_email,
-          participantHandle: e.participant_handle,
-          platform: e.platform as any,
-          verified: e.verified,
-          entryDate: e.entry_date,
-        })),
+        entries: [], // Don't load entries for performance
         posterUrl: g.poster_url,
-        socialPostId: g.social_post_id,
-        userId: g.user_id,
+        socialPostId: '',
+        userId: '',
         createdAt: g.created_at,
-        updatedAt: g.updated_at,
+        updatedAt: g.created_at,
         organizer: g.users?.name || 'Anonymous',
       }));
 
@@ -124,7 +125,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     }
   };
 
-  const filteredAndSortedGiveaways = React.useMemo(() => {
+  const filteredAndSortedGiveaways = useMemo(() => {
     let filtered = allGiveaways.filter(giveaway =>
       giveaway.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       giveaway.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,11 +149,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     return filtered;
   }, [allGiveaways, searchTerm, sortBy]);
 
-  const totalEntries = allGiveaways.reduce((sum, g) => sum + g.entries.length, 0);
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Gleam.io Style */}
+      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -165,19 +164,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   GiveawayHub
                 </span>
               </div>
-              
-              {/* Navigation */}
-              <nav className="hidden md:flex space-x-8">
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">Giveaways</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">Browse</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">How it Works</a>
-              </nav>
             </div>
 
             <div className="flex items-center space-x-4">
               <button
                 onClick={onGetStarted}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
               >
                 Create Giveaway
               </button>
@@ -186,16 +178,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
       </header>
 
-      {/* Hero Section - Gleam.io Style */}
-      <section className="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 text-white py-20">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">
             Discover Amazing
             <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
               Giveaways
             </span>
           </h1>
-          <p className="text-xl md:text-2xl text-purple-100 mb-8 max-w-3xl mx-auto">
+          <p className="text-xl text-purple-100 mb-8 max-w-3xl mx-auto">
             Enter exciting giveaways from creators and brands worldwide. Win amazing prizes and discover new communities.
           </p>
           
@@ -205,7 +197,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <Search size={24} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search for giveaways, prizes, or creators..."
+                placeholder="Search for giveaways..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-6 py-4 text-lg rounded-xl border-0 focus:ring-4 focus:ring-white/20 focus:outline-none text-gray-900 placeholder-gray-500"
@@ -220,7 +212,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="text-purple-100">Active Giveaways</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-yellow-400">{totalEntries.toLocaleString()}+</div>
+              <div className="text-3xl md:text-4xl font-bold text-yellow-400">1K+</div>
               <div className="text-purple-100">Total Entries</div>
             </div>
             <div className="text-center">
@@ -252,15 +244,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 </select>
               </div>
             </div>
-
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Showing all active giveaways</span>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Giveaways Grid - Gleam.io Style */}
+      {/* Giveaways Grid */}
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {loading ? (
@@ -317,7 +305,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                       <img
                         src={giveaway.posterUrl}
                         alt={giveaway.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -386,7 +375,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <div className="flex items-center space-x-1">
                         <Users size={14} />
-                        <span>{giveaway.entries.length} entries</span>
+                        <span>0 entries</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar size={14} />
@@ -401,7 +390,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                           e.stopPropagation();
                           handleGiveawayClick(giveaway.id);
                         }}
-                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all flex items-center justify-center space-x-2"
                       >
                         <Trophy size={16} />
                         <span>Enter Now</span>
@@ -419,7 +408,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           )}
 
-          {/* Load More / CTA */}
+          {/* CTA */}
           {filteredAndSortedGiveaways.length > 0 && (
             <div className="text-center mt-16">
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-12 border border-purple-200">
@@ -428,11 +417,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   Ready to create your own giveaway?
                 </h3>
                 <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-                  Join thousands of creators and businesses who use GiveawayHub to grow their audience and engage their community.
+                  Join thousands of creators and businesses who use GiveawayHub to grow their audience.
                 </p>
                 <button
                   onClick={onGetStarted}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 text-lg"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all text-lg"
                 >
                   Start Your Giveaway
                 </button>
@@ -452,22 +441,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <span className="text-2xl font-bold">GiveawayHub</span>
               </div>
               <p className="text-gray-400 text-lg mb-6 max-w-md">
-                The ultimate platform for discovering and creating amazing giveaways. Connect with your audience and grow your community.
+                The ultimate platform for discovering and creating amazing giveaways.
               </p>
-              <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">Twitter</span>
-                  🐦
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">Facebook</span>
-                  👥
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">Instagram</span>
-                  📷
-                </a>
-              </div>
             </div>
             
             <div>
@@ -476,7 +451,6 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <li><a href="#" className="hover:text-white transition-colors">Browse Giveaways</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Create Giveaway</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">How it Works</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
               </ul>
             </div>
             
@@ -486,14 +460,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
             <p className="text-gray-400">&copy; 2024 GiveawayHub. All rights reserved.</p>
-            <p className="text-gray-400 mt-4 md:mt-0">Made with ❤️ for creators worldwide</p>
           </div>
         </div>
       </footer>

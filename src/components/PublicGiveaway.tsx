@@ -25,45 +25,43 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
 
   const loadGiveaway = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the giveaway
+      const { data: giveawayData, error: giveawayError } = await supabase
         .from('giveaways')
         .select(`
           *,
-          entries (*),
           users (name)
         `)
         .eq('id', giveawayId)
         .eq('status', 'active')
         .single();
 
-      if (error) throw error;
+      if (giveawayError) throw giveawayError;
+
+      // Then get the entries count
+      const { count: entriesCount } = await supabase
+        .from('entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('giveaway_id', giveawayId);
 
       const transformedGiveaway: Giveaway = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        prize: data.prize,
-        platform: data.platform,
-        status: data.status,
-        startDate: data.start_date,
-        endDate: data.end_date,
-        entryMethods: data.entry_methods || [],
-        entries: (data.entries || []).map((e: any) => ({
-          id: e.id,
-          giveawayId: e.giveaway_id,
-          participantName: e.participant_name,
-          participantEmail: e.participant_email,
-          participantHandle: e.participant_handle,
-          platform: e.platform,
-          verified: e.verified,
-          entryDate: e.entry_date,
-        })),
-        posterUrl: data.poster_url,
-        socialPostId: data.social_post_id,
-        userId: data.user_id,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-        organizer: data.users?.name || 'Anonymous',
+        id: giveawayData.id,
+        title: giveawayData.title,
+        description: giveawayData.description,
+        prize: giveawayData.prize,
+        platform: giveawayData.platform,
+        status: giveawayData.status,
+        startDate: giveawayData.start_date,
+        endDate: giveawayData.end_date,
+        entryMethods: giveawayData.entry_methods || [],
+        entries: [], // We'll just use the count
+        posterUrl: giveawayData.poster_url,
+        socialPostId: giveawayData.social_post_id,
+        userId: giveawayData.user_id,
+        createdAt: giveawayData.created_at,
+        updatedAt: giveawayData.updated_at,
+        organizer: giveawayData.users?.name || 'Anonymous',
+        entriesCount: entriesCount || 0,
       };
 
       setGiveaway(transformedGiveaway);
@@ -71,10 +69,14 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
       // Check if user has already entered
       const userEmail = localStorage.getItem('user_email');
       if (userEmail) {
-        const hasUserEntered = transformedGiveaway.entries.some(
-          entry => entry.participantEmail === userEmail
-        );
-        setHasEntered(hasUserEntered);
+        const { data: existingEntry } = await supabase
+          .from('entries')
+          .select('id')
+          .eq('giveaway_id', giveawayId)
+          .eq('participant_email', userEmail)
+          .single();
+        
+        setHasEntered(!!existingEntry);
       }
     } catch (error) {
       console.error('Error loading giveaway:', error);
@@ -93,17 +95,6 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
     setMessage(null);
 
     try {
-      // Check if email already entered
-      const existingEntry = giveaway.entries.find(
-        entry => entry.participantEmail === entryForm.email
-      );
-
-      if (existingEntry) {
-        setMessage({ type: 'error', text: 'This email has already entered the giveaway' });
-        setHasEntered(true);
-        return;
-      }
-
       // Create entry
       const { data, error } = await supabase
         .from('entries')
@@ -118,7 +109,15 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          setMessage({ type: 'error', text: 'This email has already entered the giveaway' });
+          setHasEntered(true);
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       // Store email in localStorage to prevent re-entry
       localStorage.setItem('user_email', entryForm.email);
@@ -129,8 +128,10 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
         text: 'Entry successful! Good luck! 🍀' 
       });
 
-      // Reload giveaway to update entry count
-      loadGiveaway();
+      // Update entries count
+      if (giveaway.entriesCount !== undefined) {
+        setGiveaway(prev => prev ? { ...prev, entriesCount: prev.entriesCount! + 1 } : null);
+      }
     } catch (error: any) {
       console.error('Error entering giveaway:', error);
       setMessage({ 
@@ -259,6 +260,7 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
                 src={giveaway.posterUrl}
                 alt={giveaway.title}
                 className="w-full h-64 sm:h-80 object-cover"
+                loading="lazy"
               />
               <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
                 {getTimeRemaining()}
@@ -283,7 +285,7 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
               <div className="text-center">
                 <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">Entries</p>
-                <p className="font-semibold">{giveaway.entries.length}</p>
+                <p className="font-semibold">{giveaway.entriesCount || 0}</p>
               </div>
               <div className="text-center">
                 <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
@@ -389,7 +391,7 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
                     value={entryForm.socialHandle}
                     onChange={(e) => setEntryForm(prev => ({ ...prev, socialHandle: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder={`Your ${giveaway.platform} handle (optional)`}
+                    placeholder="Your social media handle (optional)"
                     disabled={entering}
                   />
                 </div>
@@ -397,7 +399,7 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
                 <button
                   type="submit"
                   disabled={entering}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {entering ? (
                     <div className="flex items-center justify-center space-x-2">
@@ -414,41 +416,6 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
                 </p>
               </form>
             )}
-          </div>
-        </div>
-
-        {/* Share Section */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-600 mb-4">Help spread the word!</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <button
-              onClick={() => {
-                const url = window.location.href;
-                const text = `🎉 Amazing giveaway alert! Win ${giveaway.prize}! 🏆`;
-                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-              }}
-              className="bg-blue-400 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors flex items-center space-x-2"
-            >
-              <span>🐦</span>
-              <span>Share on Twitter</span>
-            </button>
-            <button
-              onClick={() => {
-                const url = window.location.href;
-                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <span>👥</span>
-              <span>Share on Facebook</span>
-            </button>
-            <button
-              onClick={shareGiveaway}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
-            >
-              <ExternalLink size={16} />
-              <span>Copy Link</span>
-            </button>
           </div>
         </div>
       </div>
