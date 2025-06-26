@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, User, LogOut, Menu, X, CreditCard } from 'lucide-react';
+import { Gift, User, LogOut, Menu, X, CreditCard, Home } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -42,9 +42,11 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           <div className="flex items-center">
             <button
               onClick={() => handleNavigation('dashboard')}
-              className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 transition-colors"
+              className="flex items-center space-x-3 text-purple-600 hover:text-purple-700 transition-colors"
             >
-              <Gift size={32} className="text-purple-600" />
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
+                <Gift size={24} className="text-white" />
+              </div>
               <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 GiveawayHub
               </span>
@@ -53,6 +55,17 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
+            <button
+              onClick={() => handleNavigation('landing')}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${
+                currentPage === 'landing'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              <Home size={16} />
+              <span>Home</span>
+            </button>
             <button
               onClick={() => handleNavigation('dashboard')}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -140,6 +153,17 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
           <div className="px-2 pt-2 pb-3 space-y-1">
+            <button
+              onClick={() => handleNavigation('landing')}
+              className={`flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                currentPage === 'landing'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              <Home size={16} />
+              <span>Home</span>
+            </button>
             <button
               onClick={() => handleNavigation('dashboard')}
               className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors ${
