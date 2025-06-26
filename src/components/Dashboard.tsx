@@ -11,7 +11,7 @@ interface DashboardProps {
 export function Dashboard({ onNavigate, onNavigateHome }: DashboardProps) {
   const { giveaways, analytics, deleteGiveaway, updateGiveaway, loading } = useGiveaways();
 
-  // Calculate real-time analytics
+  // Calculate real-time analytics using entriesCount
   const realTimeAnalytics = React.useMemo(() => {
     const totalGiveaways = giveaways.length;
     const activeGiveaways = giveaways.filter(g => {
@@ -20,7 +20,7 @@ export function Dashboard({ onNavigate, onNavigateHome }: DashboardProps) {
       return g.status === 'active' && endDate > now;
     }).length;
     
-    const totalEntries = giveaways.reduce((sum, g) => sum + g.entries.length, 0);
+    const totalEntries = giveaways.reduce((sum, g) => sum + (g.entriesCount || 0), 0);
     const averageEngagement = totalGiveaways > 0 ? Math.round((totalEntries / totalGiveaways) * 10) / 10 : 0;
 
     return {
@@ -226,7 +226,7 @@ export function Dashboard({ onNavigate, onNavigateHome }: DashboardProps) {
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users size={16} />
-                            <span>{giveaway.entries.length} entries</span>
+                            <span>{giveaway.entriesCount || 0} entries</span>
                           </div>
                         </div>
                       </div>
@@ -294,7 +294,7 @@ export function Dashboard({ onNavigate, onNavigateHome }: DashboardProps) {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">
-                  {Math.max(...giveaways.map(g => g.entries.length), 0)}
+                  {Math.max(...giveaways.map(g => g.entriesCount || 0), 0)}
                 </div>
                 <div className="text-sm text-gray-600">Most Entries</div>
               </div>

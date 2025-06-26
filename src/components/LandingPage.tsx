@@ -9,7 +9,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [allGiveaways, setAllGiveaways] = useState<Giveaway[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'ending'>('newest');
   const [likedGiveaways, setLikedGiveaways] = useState<Set<string>>(new Set());
@@ -20,6 +20,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
   const loadAllGiveaways = async () => {
     try {
+      setLoading(true);
+      
+      // Simplified query for better performance
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
@@ -37,10 +40,31 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           users!inner(name)
         `)
         .eq('status', 'active')
+        .gte('end_date', new Date().toISOString()) // Only get non-expired giveaways
         .order('created_at', { ascending: false })
-        .limit(50); // Limit to improve performance
+        .limit(20); // Reduced limit for faster loading
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading giveaways:', error);
+        setAllGiveaways([]);
+        return;
+      }
+
+      // Get entry counts in a separate optimized query
+      const giveawayIds = (data || []).map(g => g.id);
+      let entryCounts: Record<string, number> = {};
+
+      if (giveawayIds.length > 0) {
+        const { data: entryCountData } = await supabase
+          .from('entries')
+          .select('giveaway_id')
+          .in('giveaway_id', giveawayIds);
+
+        entryCounts = (entryCountData || []).reduce((acc, entry) => {
+          acc[entry.giveaway_id] = (acc[entry.giveaway_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+      }
 
       const transformedGiveaways: Giveaway[] = (data || []).map(g => ({
         id: g.id,
@@ -53,6 +77,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         endDate: g.end_date,
         entryMethods: g.entry_methods || [],
         entries: [], // Don't load entries for performance
+        entriesCount: entryCounts[g.id] || 0,
         posterUrl: g.poster_url,
         socialPostId: '',
         userId: '',
@@ -61,16 +86,10 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         organizer: g.users?.name || 'Anonymous',
       }));
 
-      // Filter out expired giveaways
-      const activeGiveaways = transformedGiveaways.filter(g => {
-        const endDate = new Date(g.endDate);
-        const now = new Date();
-        return endDate > now;
-      });
-
-      setAllGiveaways(activeGiveaways);
+      setAllGiveaways(transformedGiveaways);
     } catch (error) {
       console.error('Error loading giveaways:', error);
+      setAllGiveaways([]);
     } finally {
       setLoading(false);
     }
@@ -126,23 +145,31 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   };
 
   const filteredAndSortedGiveaways = useMemo(() => {
-    let filtered = allGiveaways.filter(giveaway =>
-      giveaway.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      giveaway.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      giveaway.prize.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      giveaway.organizer?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (!searchTerm && sortBy === 'newest') {
+      return allGiveaways; // Return as-is for best performance
+    }
+
+    let filtered = allGiveaways;
+    
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = allGiveaways.filter(giveaway =>
+        giveaway.title.toLowerCase().includes(searchLower) ||
+        giveaway.prize.toLowerCase().includes(searchLower) ||
+        giveaway.organizer?.toLowerCase().includes(searchLower)
+      );
+    }
 
     switch (sortBy) {
       case 'popular':
-        filtered.sort((a, b) => b.entries.length - a.entries.length);
+        filtered.sort((a, b) => (b.entriesCount || 0) - (a.entriesCount || 0));
         break;
       case 'ending':
         filtered.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
         break;
       case 'newest':
       default:
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // Already sorted by created_at desc from query
         break;
     }
 
@@ -212,7 +239,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="text-purple-100">Active Giveaways</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-yellow-400">1K+</div>
+              <div className="text-3xl md:text-4xl font-bold text-yellow-400">
+                {allGiveaways.reduce((sum, g) => sum + (g.entriesCount || 0), 0)}+
+              </div>
               <div className="text-purple-100">Total Entries</div>
             </div>
             <div className="text-center">
@@ -375,7 +404,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <div className="flex items-center space-x-1">
                         <Users size={14} />
-                        <span>0 entries</span>
+                        <span>{giveaway.entriesCount || 0} entries</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar size={14} />
