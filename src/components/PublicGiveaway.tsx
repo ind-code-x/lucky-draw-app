@@ -389,7 +389,7 @@ export function PublicGiveaway({ giveawayId }: PublicGiveawayProps) {
                     value={entryForm.socialHandle}
                     onChange={(e) => setEntryForm(prev => ({ ...prev, socialHandle: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder={`Your ${giveaway.platform} handle (optional)`}
+                    placeholder="Your social media handle (optional)"
                     disabled={entering}
                   />
                 </div>

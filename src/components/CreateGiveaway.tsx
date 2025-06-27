@@ -82,7 +82,7 @@ export function CreateGiveaway({ onBack, onNavigateHome }: CreateGiveawayProps) 
         type: type as any,
         description: method.description,
         required: true,
-        platform: 'instagram', // Default platform since we removed platform selection
+        platform: 'general', // Default platform since we removed platform selection
       };
       setFormData(prev => ({
         ...prev,
@@ -112,7 +112,7 @@ export function CreateGiveaway({ onBack, onNavigateHome }: CreateGiveawayProps) 
       try {
         const giveawayData = {
           ...formData,
-          platform: 'instagram' as const, // Default platform
+          platform: 'general' as const, // Default platform
           userId: user!.id,
           status: 'active' as const,
           posterUrl,

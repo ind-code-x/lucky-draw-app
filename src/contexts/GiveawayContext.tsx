@@ -39,6 +39,7 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
       tiktok: 0,
       youtube: 0,
       whatsapp: 0,
+      general: 0,
     },
     monthlyGrowth: 0,
   });
@@ -70,7 +71,10 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (giveawaysError) throw giveawaysError;
+      if (giveawaysError) {
+        console.error('Error loading giveaways:', giveawaysError);
+        throw giveawaysError;
+      }
 
       // Transform data to match our types
       const transformedGiveaways: Giveaway[] = (giveawaysData || []).map(g => ({
@@ -104,6 +108,7 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
       calculateAnalytics(transformedGiveaways);
     } catch (error) {
       console.error('Error loading giveaways:', error);
+      setGiveaways([]);
     } finally {
       setLoading(false);
     }
@@ -131,6 +136,7 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
         tiktok: platformBreakdown.tiktok || 0,
         youtube: platformBreakdown.youtube || 0,
         whatsapp: platformBreakdown.whatsapp || 0,
+        general: platformBreakdown.general || 0,
       },
       monthlyGrowth: 23.5, // This would be calculated based on historical data
     });
@@ -142,33 +148,6 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Creating giveaway with user ID:', user.id);
       
-      // Verify user exists in database before creating giveaway
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-      if (userError || !userData) {
-        console.log('User not found in database, creating profile...');
-        // Create user profile if it doesn't exist
-        const { error: createUserError } = await supabase
-          .from('users')
-          .upsert({
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            subscription_status: 'free',
-          }, {
-            onConflict: 'id'
-          });
-
-        if (createUserError) {
-          console.error('Error creating user profile:', createUserError);
-          throw new Error('Failed to create user profile');
-        }
-      }
-
       const { data, error } = await supabase
         .from('giveaways')
         .insert([{
@@ -176,13 +155,13 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
           title: giveawayData.title,
           description: giveawayData.description,
           prize: giveawayData.prize,
-          platform: giveawayData.platform,
+          platform: giveawayData.platform || 'general',
           status: giveawayData.status,
           start_date: giveawayData.startDate,
           end_date: giveawayData.endDate,
           entry_methods: giveawayData.entryMethods,
-          poster_url: (giveawayData as any).posterUrl,
-          social_post_id: (giveawayData as any).socialPostId,
+          poster_url: giveawayData.posterUrl,
+          social_post_id: giveawayData.socialPostId,
         }])
         .select()
         .single();
@@ -233,8 +212,8 @@ export function GiveawayProvider({ children }: { children: React.ReactNode }) {
           start_date: updates.startDate,
           end_date: updates.endDate,
           entry_methods: updates.entryMethods,
-          poster_url: (updates as any).posterUrl,
-          social_post_id: (updates as any).socialPostId,
+          poster_url: updates.posterUrl,
+          social_post_id: updates.socialPostId,
           winner_id: updates.winner?.id,
           updated_at: new Date().toISOString(),
         })
