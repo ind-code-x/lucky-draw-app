@@ -45,7 +45,7 @@ export interface EntryMethod {
   platform: SocialPlatform;
 }
 
-export type SocialPlatform = 'instagram' | 'facebook' | 'twitter' | 'tiktok' | 'youtube' | 'whatsapp';
+export type SocialPlatform = 'instagram' | 'facebook' | 'twitter' | 'tiktok' | 'youtube' | 'whatsapp' | 'general';
 
 export interface Analytics {
   totalGiveaways: number;

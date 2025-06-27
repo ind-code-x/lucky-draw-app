@@ -38,7 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.email);
       if (session?.user) {
         loadUserProfile(session.user);
       } else {
@@ -48,8 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
@@ -63,8 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (authUser: User) => {
     try {
-      console.log('Loading user profile for:', authUser.email);
-      
+      // First check if user exists
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -73,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error && error.code === 'PGRST116') {
         // User doesn't exist, create profile
-        console.log('Creating new user profile...');
         const newUser = {
           id: authUser.id,
           email: authUser.email!,
@@ -83,14 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data: createdUser, error: createError } = await supabase
           .from('users')
-          .insert([newUser])
+          .upsert([newUser])
           .select()
           .single();
 
         if (createError) {
           console.error('Error creating user profile:', createError);
-          // If we can't create the profile, create a minimal user object
-          console.log('Creating minimal user object...');
+          // Create minimal user object as fallback
           setUser({
             id: authUser.id,
             name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
@@ -99,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
           });
         } else {
-          console.log('User profile created successfully:', createdUser);
           setUser({
             id: createdUser.id,
             name: createdUser.name,
@@ -112,8 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else if (error) {
         console.error('Error loading user profile:', error);
-        // If we can't load the profile, create a minimal user object
-        console.log('Creating minimal user object due to error...');
+        // Create minimal user object as fallback
         setUser({
           id: authUser.id,
           name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
@@ -122,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString(),
         });
       } else {
-        console.log('User profile loaded successfully:', data);
         setUser({
           id: data.id,
           name: data.name,
@@ -136,7 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error in loadUserProfile:', error);
       // Fallback: create minimal user object
-      console.log('Creating fallback user object...');
       setUser({
         id: authUser.id,
         name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
@@ -150,8 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string) => {
-    console.log('Attempting to register user:', email);
-    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -162,34 +150,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    if (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-
-    console.log('Registration successful:', data);
-    
-    // If user is immediately confirmed (no email confirmation required)
-    if (data.user && !data.user.email_confirmed_at) {
-      console.log('User registered but needs email confirmation');
-      // You might want to show a message about email confirmation
-    }
+    if (error) throw error;
   };
 
   const login = async (email: string, password: string) => {
-    console.log('Attempting to login user:', email);
-    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-
-    console.log('Login successful:', data);
+    if (error) throw error;
   };
 
   const logout = async () => {
@@ -213,7 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error updating subscription:', error);
-        // Don't throw, just log the error
       }
 
       setUser(prev => prev ? {

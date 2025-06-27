@@ -1,14 +1,15 @@
 import React from 'react';
-import { Gift, User, LogOut, Menu, X, CreditCard } from 'lucide-react';
+import { Gift, User, LogOut, Menu, X, CreditCard, Home } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface NavbarProps {
   onNavigate: (page: string) => void;
   currentPage: string;
+  onNavigateHome: () => void;
 }
 
-export function Navbar({ onNavigate, currentPage }: NavbarProps) {
+export function Navbar({ onNavigate, currentPage, onNavigateHome }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
@@ -53,6 +54,13 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
+            <button
+              onClick={onNavigateHome}
+              className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-purple-600 transition-colors"
+            >
+              <Home size={16} />
+              <span>Home</span>
+            </button>
             <button
               onClick={() => handleNavigation('dashboard')}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -140,6 +148,13 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100">
           <div className="px-2 pt-2 pb-3 space-y-1">
+            <button
+              onClick={onNavigateHome}
+              className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-purple-600 transition-colors"
+            >
+              <Home size={16} />
+              <span>Home</span>
+            </button>
             <button
               onClick={() => handleNavigation('dashboard')}
               className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors ${
