@@ -11,8 +11,13 @@ import { SubscriptionSuccessPage } from './pages/subscription/SuccessPage';
 import { SubscriptionFailurePage } from './pages/subscription/FailurePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CreateGiveawayPage } from './pages/dashboard/CreateGiveawayPage';
+import { HelpPage } from './pages/HelpPage';
+import { ContactPage } from './pages/ContactPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
 import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
@@ -45,8 +50,13 @@ function App() {
               <Route path="/subscription/failure" element={<SubscriptionFailurePage />} />
               <Route path="/auth/login" element={<LoginPage />} />
               <Route path="/auth/signup" element={<SignupPage />} />
+              <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/create" element={<CreateGiveawayPage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               {/* More routes will be added here */}
             </Routes>
           </main>
