@@ -4,10 +4,16 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  throw new Error('Missing Supabase environment variables. Please connect to Supabase first.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 // Database types
 export interface Profile {
@@ -17,6 +23,7 @@ export interface Profile {
   role: 'organizer' | 'participant';
   avatar_url?: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Giveaway {
@@ -48,6 +55,7 @@ export interface Prize {
   quantity: number;
   image_url?: string;
   description?: string;
+  created_at: string;
 }
 
 export interface Participant {
@@ -78,6 +86,9 @@ export interface Winner {
   participant_id: string;
   status: 'pending_contact' | 'contacted' | 'responded' | 'disqualified' | 'prize_sent';
   drawn_at: string;
+  contacted_at?: string;
+  responded_at?: string;
+  notes?: string;
   prize?: Prize;
   participant?: Participant;
 }

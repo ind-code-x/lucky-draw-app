@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, Gift, Heart, Sparkles } from 'lucide-react';
+import { LogIn, Mail, Lock, Gift, Heart, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
@@ -25,6 +25,7 @@ export const LoginPage: React.FC = () => {
       await signIn(email, password);
       toast.success('Welcome back! ✨');
     } catch (error: any) {
+      console.error('Login error:', error);
       toast.error(error.message || 'Failed to sign in');
     } finally {
       setLoading(false);
@@ -50,6 +51,21 @@ export const LoginPage: React.FC = () => {
             <span>Sign in to your magical account</span>
           </p>
         </div>
+
+        {/* Email Confirmation Notice */}
+        <Card className="bg-blue-50 border-blue-200 shadow-lg">
+          <div className="p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-blue-800 mb-1">Email Confirmation Required</h3>
+                <p className="text-xs text-blue-700">
+                  If you just signed up, please check your email (including spam folder) and click the confirmation link before signing in.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -119,6 +135,26 @@ export const LoginPage: React.FC = () => {
               </Link>
             </div>
           </form>
+        </Card>
+
+        {/* Demo Accounts */}
+        <Card className="bg-white/80 backdrop-blur-sm border-pink-200 shadow-lg">
+          <div className="p-4">
+            <h3 className="text-sm font-semibold text-maroon-800 mb-3 text-center">Demo Accounts</h3>
+            <div className="space-y-2 text-xs text-gray-600">
+              <div className="flex justify-between">
+                <span>Organizer:</span>
+                <span>organizer@example.com / password123</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Participant:</span>
+                <span>participant@example.com / password123</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Note: These demo accounts may require email confirmation if not already set up.
+            </p>
+          </div>
         </Card>
       </div>
     </div>

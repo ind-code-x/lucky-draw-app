@@ -14,6 +14,7 @@ import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CreateGiveawayPage } from './pages/dashboard/CreateGiveawayPage';
+import { MyEntriesPage } from './pages/dashboard/MyEntriesPage';
 import { HelpPage } from './pages/HelpPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -53,6 +54,7 @@ function App() {
               <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/create" element={<CreateGiveawayPage />} />
+              <Route path="/dashboard/entries" element={<MyEntriesPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />

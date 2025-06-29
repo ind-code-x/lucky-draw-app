@@ -11,7 +11,8 @@ import {
   Heart,
   Star,
   Clock,
-  Award
+  Award,
+  Search
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -76,7 +77,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-4">
-                Welcome back, {profile?.username}! ✨
+                Welcome back, {profile?.username || 'User'}! ✨
               </h1>
               <p className="text-xl text-gray-600">
                 {profile?.role === 'organizer' 

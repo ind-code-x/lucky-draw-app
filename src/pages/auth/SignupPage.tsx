@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Gift, Heart, Sparkles } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Gift, Heart, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
@@ -35,12 +35,18 @@ export const SignupPage: React.FC = () => {
       return;
     }
 
+    if (formData.username.length < 3) {
+      toast.error('Username must be at least 3 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await signUp(formData.email, formData.password, formData.username);
-      toast.success('Welcome to the magic! ✨');
+      await signUp(formData.email, formData.password, formData.username, formData.role);
+      toast.success('Account created successfully! Please check your email to confirm your account. ✨');
     } catch (error: any) {
+      console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account');
     } finally {
       setLoading(false);
@@ -71,6 +77,21 @@ export const SignupPage: React.FC = () => {
           </p>
         </div>
 
+        {/* Email Confirmation Notice */}
+        <Card className="bg-amber-50 border-amber-200 shadow-lg">
+          <div className="p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-amber-800 mb-1">Email Confirmation Required</h3>
+                <p className="text-xs text-amber-700">
+                  After creating your account, you'll receive a confirmation email. Please check your inbox (and spam folder) and click the link to activate your account.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <Input
@@ -83,6 +104,7 @@ export const SignupPage: React.FC = () => {
               fullWidth
               placeholder="Choose a magical username"
               className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+              minLength={3}
             />
 
             <Input
@@ -107,6 +129,7 @@ export const SignupPage: React.FC = () => {
               fullWidth
               placeholder="Create a secure password"
               className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+              minLength={6}
             />
 
             <Input
@@ -119,6 +142,7 @@ export const SignupPage: React.FC = () => {
               fullWidth
               placeholder="Confirm your password"
               className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+              minLength={6}
             />
 
             <div>
