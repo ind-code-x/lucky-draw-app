@@ -173,60 +173,6 @@ export const InstagramCommentPickerPage: React.FC = () => {
     } catch (err: any) {
       toast.error(err.message || 'An unexpected error occurred');
       
-      // For demo purposes, show sample data if API is not configured
-      if (!isApiConfigured) {
-        const demoComments: Comment[] = [
-          {
-            id: '1',
-            username: 'user1',
-            text: 'Amazing giveaway! @friend1 @friend2 #contest',
-            profileUrl: 'https://instagram.com/user1',
-            verified: false,
-            like_count: 5
-          },
-          {
-            id: '2', 
-            username: 'user2',
-            text: 'Count me in! This looks incredible 🎉',
-            profileUrl: 'https://instagram.com/user2',
-            verified: true,
-            like_count: 12
-          },
-          {
-            id: '3',
-            username: 'user3', 
-            text: 'Love this! @bestie @sister check this out',
-            profileUrl: 'https://instagram.com/user3',
-            verified: false,
-            like_count: 3
-          },
-          {
-            id: '4',
-            username: 'user4',
-            text: 'Following all the rules! Hope I win 🤞',
-            profileUrl: 'https://instagram.com/user4',
-            verified: false,
-            like_count: 8
-          },
-          {
-            id: '5',
-            username: 'user5',
-            text: 'This is so cool! @mom @dad look at this',
-            profileUrl: 'https://instagram.com/user5',
-            verified: false,
-            like_count: 2
-          }
-        ];
-        
-        setComments(demoComments);
-        toast.success('Demo: Showing sample comments (configure Instagram API for real data)');
-      }
-    } finally {
-      setIsLoading(false);
-      setIsCollecting(false);
-    }
-  };
-
   // Draw winners
   const drawWinners = () => {
     if (comments.length === 0) {
