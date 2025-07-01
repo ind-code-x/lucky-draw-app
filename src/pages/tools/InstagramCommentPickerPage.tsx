@@ -80,21 +80,23 @@ export const InstagramCommentPickerPage: React.FC = () => {
     setWinners([]);
 
     try {
+      // Step 1: Get user's pages
       const pagesResponse = await fetch(
         `https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`
       );
-
+      
       if (!pagesResponse.ok) {
         const error = await pagesResponse.json();
         throw new Error(error.error?.message || 'Failed to fetch Facebook pages');
       }
 
       const pagesData = await pagesResponse.json();
-
+      
       if (!pagesData.data || pagesData.data.length === 0) {
         throw new Error('No Facebook pages found. Make sure your access token has pages_show_list permission.');
       }
 
+      // Step 2: Find Instagram Business Account
       let instagramAccountId = null;
       let pageAccessToken = null;
 
@@ -103,7 +105,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
           const igResponse = await fetch(
             `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
           );
-
+          
           if (igResponse.ok) {
             const igData = await igResponse.json();
             if (igData.instagram_business_account) {
@@ -121,6 +123,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
         throw new Error('No Instagram Business Account found. Make sure your Facebook page is connected to an Instagram Business Account.');
       }
 
+      // Step 3: Get Instagram media to find the post
       const mediaResponse = await fetch(
         `https://graph.facebook.com/v19.0/${instagramAccountId}/media?fields=id,media_url,permalink,timestamp&limit=50&access_token=${pageAccessToken || accessToken}`
       );
@@ -131,20 +134,23 @@ export const InstagramCommentPickerPage: React.FC = () => {
       }
 
       const mediaData = await mediaResponse.json();
-
+      
       if (!mediaData.data || mediaData.data.length === 0) {
         throw new Error('No Instagram posts found in your account.');
       }
 
+      // Find the matching post
       const postId = extractPostId(instagramUrl);
-      const targetPost = mediaData.data.find(post =>
-        post.permalink?.includes(postId || '') || post.id === postId
+      const targetPost = mediaData.data.find(post => 
+        post.permalink?.includes(postId || '') || 
+        post.id === postId
       );
 
       if (!targetPost) {
         throw new Error(`Post not found in your Instagram Business Account. Make sure the URL is from your own account and the post exists.`);
       }
 
+      // Step 4: Get comments for the post
       const commentsResponse = await fetch(
         `https://graph.facebook.com/v19.0/${targetPost.id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=100&access_token=${pageAccessToken || accessToken}`
       );
@@ -155,7 +161,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       }
 
       const commentsData = await commentsResponse.json();
-
+      
       if (!commentsData.data || commentsData.data.length === 0) {
         toast.warning('No comments found on this post');
         setIsCollecting(false);
@@ -166,10 +172,187 @@ export const InstagramCommentPickerPage: React.FC = () => {
       toast.success(`Fetched ${commentsData.data.length} comments.`);
     } catch (err: any) {
       toast.error(err.message || 'An unexpected error occurred');
+      
+      // For demo purposes, show sample data if API is not configured
+      if (!isApiConfigured) {
+        const demoComments: Comment[] = [
+          {
+            id: '1',
+            username: 'user1',
+            text: 'Amazing giveaway! @friend1 @friend2 #contest',
+            profileUrl: 'https://instagram.com/user1',
+            verified: false,
+            like_count: 5
+          },
+          {
+            id: '2', 
+            username: 'user2',
+            text: 'Count me in! This looks incredible 🎉',
+            profileUrl: 'https://instagram.com/user2',
+            verified: true,
+            like_count: 12
+          },
+          {
+            id: '3',
+            username: 'user3', 
+            text: 'Love this! @bestie @sister check this out',
+            profileUrl: 'https://instagram.com/user3',
+            verified: false,
+            like_count: 3
+          },
+          {
+            id: '4',
+            username: 'user4',
+            text: 'Following all the rules! Hope I win 🤞',
+            profileUrl: 'https://instagram.com/user4',
+            verified: false,
+            like_count: 8
+          },
+          {
+            id: '5',
+            username: 'user5',
+            text: 'This is so cool! @mom @dad look at this',
+            profileUrl: 'https://instagram.com/user5',
+            verified: false,
+            like_count: 2
+          }
+        ];
+        
+        setComments(demoComments);
+        toast.success('Demo: Showing sample comments (configure Instagram API for real data)');
+      }
     } finally {
       setIsLoading(false);
       setIsCollecting(false);
     }
+  };
+
+  // Draw winners
+  const drawWinners = () => {
+    if (comments.length === 0) {
+      toast.error('No comments to draw from');
+      return;
+    }
+
+    if (numberOfWinners > comments.length) {
+      toast.error(`Cannot draw ${numberOfWinners} winners from ${comments.length} comments`);
+      return;
+    }
+
+    setIsDrawing(true);
+
+    setTimeout(() => {
+      let availableComments = [...comments];
+      const selectedWinners: Winner[] = [];
+
+      if (!allowDuplicateUsers) {
+        const uniqueUsers = new Map();
+        availableComments.forEach(comment => {
+          if (!uniqueUsers.has(comment.username.toLowerCase())) {
+            uniqueUsers.set(comment.username.toLowerCase(), comment);
+          }
+        });
+        availableComments = Array.from(uniqueUsers.values());
+      }
+
+      for (let i = 0; i < numberOfWinners && availableComments.length > 0; i++) {
+        const randomIndex = Math.floor(Math.random() * availableComments.length);
+        const winner = availableComments[randomIndex];
+        
+        selectedWinners.push({
+          id: winner.id,
+          username: winner.username,
+          text: winner.text,
+          position: i + 1,
+          profileUrl: winner.profileUrl
+        });
+
+        if (!allowDuplicateUsers) {
+          availableComments = availableComments.filter(c => 
+            c.username.toLowerCase() !== winner.username.toLowerCase()
+          );
+        } else {
+          availableComments.splice(randomIndex, 1);
+        }
+      }
+
+      setWinners(selectedWinners);
+      setIsDrawing(false);
+      toast.success(`🎉 ${selectedWinners.length} winner(s) selected!`);
+    }, 2000);
+  };
+
+  // Export results
+  const exportResults = () => {
+    if (winners.length === 0) {
+      toast.error('No winners to export');
+      return;
+    }
+
+    const exportData = {
+      giveaway: {
+        timestamp: new Date().toISOString(),
+        instagramUrl: instagramUrl,
+        tool: 'GiveawayHub Instagram Comment Picker',
+        version: '2.0.0'
+      },
+      settings: {
+        numberOfWinners,
+        allowDuplicateUsers,
+        includeReplies,
+        filterSpam,
+        maxComments
+      },
+      statistics: {
+        totalComments: comments.length,
+        uniqueUsers: new Set(comments.map(c => c.username.toLowerCase())).size,
+        totalLikes: comments.reduce((sum, c) => sum + (c.like_count || 0), 0)
+      },
+      winners: winners.map(w => ({
+        position: w.position,
+        username: w.username,
+        comment: w.text,
+        profileUrl: w.profileUrl
+      })),
+      allComments: comments.map(c => ({
+        username: c.username,
+        text: c.text,
+        profileUrl: c.profileUrl,
+        verified: c.verified,
+        timestamp: c.timestamp,
+        like_count: c.like_count
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `instagram-giveaway-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success('Results exported successfully!');
+  };
+
+  // Copy winners
+  const copyWinners = () => {
+    if (winners.length === 0) {
+      toast.error('No winners to copy');
+      return;
+    }
+
+    const winnersText = winners
+      .map(w => `${w.position}. @${w.username}: ${w.text}`)
+      .join('\n');
+
+    navigator.clipboard.writeText(winnersText).then(() => {
+      toast.success('Winners copied to clipboard!');
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
   };
 
   return (
