@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GiveawayHub Comment Collector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 7L12 3L4 7L12 11L20 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 12L12 16L20 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 17L12 21L20 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>GiveawayHub</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="not-instagram" class="message warning" style="display: none;">
+        <div class="icon">⚠️</div>
+        <div>
+          <h3>Not on Instagram</h3>
+          <p>Please navigate to an Instagram post to collect comments.</p>
+        </div>
+      </div>
+
+      <div id="instagram-detected" class="message success" style="display: none;">
+        <div class="icon">✅</div>
+        <div>
+          <h3>Instagram Post Detected</h3>
+          <p>Ready to collect comments from this post.</p>
+        </div>
+      </div>
+
+      <div class="stats" id="stats" style="display: none;">
+        <div class="stat">
+          <span class="label">Comments Found:</span>
+          <span class="value" id="comment-count">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Unique Users:</span>
+          <span class="value" id="user-count">0</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="collect-btn" class="btn primary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 15V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Collect Comments
+        </button>
+
+        <button id="copy-btn" class="btn secondary" style="display: none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M5 15H4A2 2 0 0 1 2 13V4A2 2 0 0 1 4 2H13A2 2 0 0 1 15 4V5" stroke="currentColor" stroke-width="2" fill="none"/>
+          </svg>
+          Copy to Clipboard
+        </button>
+
+        <button id="export-btn" class="btn secondary" style="display: none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 2H6A2 2 0 0 0 4 4V20A2 2 0 0 0 6 22H18A2 2 0 0 0 20 20V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Export JSON
+        </button>
+      </div>
+
+      <div class="footer">
+        <a href="https://giveawayhub.com/tools/instagram-comment-picker" target="_blank" class="link">
+          Open GiveawayHub Tool
+        </a>
+      </div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Collecting comments...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

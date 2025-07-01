@@ -10,6 +10,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
   as?: React.ElementType;
   to?: string;
+  href?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -23,6 +24,7 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   disabled,
   as: Component = 'button',
+  onClick,
   ...props
 }) => {
   const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -51,18 +53,32 @@ export const Button: React.FC<ButtonProps> = ({
     xl: 'w-6 h-6',
   };
 
+  // Handle click events properly for both button and link components
+  const handleClick = (e: React.MouseEvent) => {
+    if (disabled || loading) {
+      e.preventDefault();
+      return;
+    }
+    if (onClick) {
+      onClick(e as any);
+    }
+  };
+
+  const buttonProps = {
+    className: `
+      ${baseStyles}
+      ${variants[variant]}
+      ${sizes[size]}
+      ${fullWidth ? 'w-full' : ''}
+      ${className}
+    `,
+    disabled: disabled || loading,
+    onClick: handleClick,
+    ...props
+  };
+
   return (
-    <Component
-      className={`
-        ${baseStyles}
-        ${variants[variant]}
-        ${sizes[size]}
-        ${fullWidth ? 'w-full' : ''}
-        ${className}
-      `}
-      disabled={disabled || loading}
-      {...props}
-    >
+    <Component {...buttonProps}>
       {loading && (
         <svg className={`animate-spin -ml-1 mr-2 ${iconSizes[size]}`} fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

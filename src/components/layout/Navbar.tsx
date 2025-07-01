@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Gift, Menu, X, Plus, LogIn, LogOut, User, Heart, Crown } from 'lucide-react';
+import { Gift, Menu, X, Plus, LogIn, LogOut, User, Heart, Crown, Instagram, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuthStore } from '../../stores/authStore';
 
 export const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
   const { user, profile, signOut } = useAuthStore();
   const location = useLocation();
 
@@ -15,7 +16,13 @@ export const Navbar: React.FC = () => {
     { name: 'Pricing', href: '/subscription' },
   ];
 
+  const toolsDropdown = [
+    { name: 'All Tools', href: '/tools' },
+    { name: 'Instagram Comment Picker', href: '/tools/instagram-comment-picker', icon: Instagram },
+  ];
+
   const isActive = (path: string) => location.pathname === path;
+  const isToolsActive = () => location.pathname.startsWith('/tools');
 
   return (
     <nav className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-pink-200 sticky top-0 z-50">
@@ -46,6 +53,37 @@ export const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+            
+            {/* Tools Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                className={`flex items-center space-x-1 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                  isToolsActive()
+                    ? 'text-maroon-700 bg-pink-100 shadow-md'
+                    : 'text-gray-700 hover:text-maroon-600 hover:bg-pink-50'
+                }`}
+              >
+                <span>Tools</span>
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isToolsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isToolsOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-pink-200 py-2 z-50">
+                  {toolsDropdown.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-maroon-600 transition-colors duration-200"
+                      onClick={() => setIsToolsOpen(false)}
+                    >
+                      {item.icon && <item.icon className="w-4 h-4" />}
+                      <span>{item.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Desktop Auth Buttons */}
@@ -138,6 +176,22 @@ export const Navbar: React.FC = () => {
                   {item.name}
                 </Link>
               ))}
+              
+              {/* Mobile Tools */}
+              <div className="px-4 py-2">
+                <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Tools</div>
+                {toolsDropdown.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="flex items-center space-x-3 px-2 py-2 text-base font-medium text-gray-700 hover:bg-pink-50 hover:text-maroon-600 rounded-lg transition-all duration-300"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
+              </div>
               
               {user ? (
                 <>

@@ -74,6 +74,23 @@ export const CreateGiveawayPage: React.FC = () => {
     try {
       const slug = generateSlug(data.title);
       
+      // Validate dates
+      const startTime = new Date(data.start_time);
+      const endTime = new Date(data.end_time);
+      const announceTime = new Date(data.announce_time);
+      
+      if (startTime >= endTime) {
+        toast.error('End time must be after start time');
+        setLoading(false);
+        return;
+      }
+      
+      if (endTime > announceTime) {
+        toast.error('Announcement time must be after end time');
+        setLoading(false);
+        return;
+      }
+      
       const giveawayData = {
         organizer_id: user.id,
         title: data.title,
@@ -83,7 +100,7 @@ export const CreateGiveawayPage: React.FC = () => {
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
-        status: 'pending' as const,
+        status: 'active' as const, // Set to active for testing
         entry_config: {
           email_signup: { enabled: true, points: 5 },
           social_follow: { enabled: true, points: 3 },
@@ -93,8 +110,9 @@ export const CreateGiveawayPage: React.FC = () => {
 
       const giveawayId = await createGiveaway(giveawayData, data.prizes);
       toast.success('Giveaway created successfully! ✨');
-      navigate(`/dashboard/giveaway/${giveawayId}`);
+      navigate('/dashboard');
     } catch (error: any) {
+      console.error('Create giveaway error:', error);
       toast.error(error.message || 'Failed to create giveaway');
     } finally {
       setLoading(false);
@@ -111,12 +129,22 @@ export const CreateGiveawayPage: React.FC = () => {
     }
   };
 
+  // Set default dates for testing
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const nextWeekPlus1 = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
+
+  const defaultStartTime = now.toISOString().slice(0, 16);
+  const defaultEndTime = nextWeek.toISOString().slice(0, 16);
+  const defaultAnnounceTime = nextWeekPlus1.toISOString().slice(0, 16);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="bg-gradient-to-br from-maroon-600 to-pink-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+          <div className="bg-gradient-to-br from-maroon-600 to-pink-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl relative">
             <Gift className="w-10 h-10 text-white" />
             <Sparkles className="w-4 h-4 text-pink-200 absolute -top-1 -right-1 animate-pulse" />
           </div>
@@ -181,6 +209,7 @@ export const CreateGiveawayPage: React.FC = () => {
               <Input
                 label="Start Date & Time"
                 type="datetime-local"
+                defaultValue={defaultStartTime}
                 {...register('start_time', { required: 'Start time is required' })}
                 error={errors.start_time?.message}
                 fullWidth
@@ -190,6 +219,7 @@ export const CreateGiveawayPage: React.FC = () => {
               <Input
                 label="End Date & Time"
                 type="datetime-local"
+                defaultValue={defaultEndTime}
                 {...register('end_time', { required: 'End time is required' })}
                 error={errors.end_time?.message}
                 fullWidth
@@ -199,6 +229,7 @@ export const CreateGiveawayPage: React.FC = () => {
               <Input
                 label="Winner Announcement"
                 type="datetime-local"
+                defaultValue={defaultAnnounceTime}
                 {...register('announce_time', { required: 'Announcement time is required' })}
                 error={errors.announce_time?.message}
                 fullWidth
@@ -252,7 +283,7 @@ export const CreateGiveawayPage: React.FC = () => {
                     />
 
                     <Input
-                      label="Value ($)"
+                      label="Value (₹)"
                       type="number"
                       step="0.01"
                       placeholder="0.00"
@@ -302,6 +333,7 @@ export const CreateGiveawayPage: React.FC = () => {
               size="lg"
               icon={Eye}
               className="border-2 border-maroon-600 text-maroon-600 hover:bg-maroon-50"
+              onClick={() => toast.success('Preview feature coming soon! ✨')}
             >
               Preview Giveaway
             </Button>

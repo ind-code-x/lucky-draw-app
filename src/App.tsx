@@ -19,6 +19,8 @@ import { HelpPage } from './pages/HelpPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
+import { ToolsIndexPage } from './pages/tools/ToolsIndexPage';
+import { InstagramCommentPickerPage } from './pages/tools/InstagramCommentPickerPage';
 import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
@@ -59,6 +61,8 @@ function App() {
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/tools" element={<ToolsIndexPage />} />
+              <Route path="/tools/instagram-comment-picker" element={<InstagramCommentPickerPage />} />
               {/* More routes will be added here */}
             </Routes>
           </main>

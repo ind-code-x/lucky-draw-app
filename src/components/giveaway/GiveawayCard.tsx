@@ -69,6 +69,22 @@ export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
             {giveaway.description}
           </p>
 
+          {/* Organizer */}
+          {giveaway.organizer && (
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 text-sm bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg p-3">
+                <div className="w-6 h-6 bg-gradient-to-br from-maroon-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">
+                    {giveaway.organizer.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <span className="font-medium text-maroon-700">
+                  by {giveaway.organizer.username}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Prizes Preview */}
           {giveaway.prizes && giveaway.prizes.length > 0 && (
             <div className="mb-6">
@@ -101,8 +117,8 @@ export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
             </div>
           </div>
 
-          <Link
-            to={`/giveaway/${giveaway.slug}`}
+          <button
+            onClick={() => alert(`Giveaway details for: ${giveaway.title}\n\nThis would normally navigate to the giveaway detail page.`)}
             className={`block w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
               isEnded 
                 ? 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white'
@@ -120,7 +136,7 @@ export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
                 Enter Giveaway
               </>
             )}
-          </Link>
+          </button>
         </div>
       </div>
     </Card>

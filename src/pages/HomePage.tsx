@@ -23,11 +23,18 @@ export const HomePage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const scrollToGiveaways = () => {
+    const element = document.getElementById('giveaways');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-maroon-pink opacity-95"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-maroon-600 via-pink-600 to-rose-500 opacity-95"></div>
         <div className="absolute inset-0 bg-pattern-dots-white opacity-30"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
@@ -52,8 +59,9 @@ export const HomePage: React.FC = () => {
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Button 
+                onClick={scrollToGiveaways}
                 size="xl" 
-                className="bg-white text-maroon-700 hover:bg-pink-50 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-10"
+                className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-10"
               >
                 <Heart className="w-5 h-5 mr-2" />
                 Explore Giveaways
@@ -63,7 +71,7 @@ export const HomePage: React.FC = () => {
                 to="/auth/signup"
                 size="xl"
                 variant="outline"
-                className="border-2 border-white text-white hover:bg-white hover:text-maroon-700 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-10"
+                className="border-2 border-pink-200 text-pink-100 hover:bg-pink-100 hover:text-maroon-700 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-10"
               >
                 <Sparkles className="w-5 h-5 mr-2" />
                 Start Your Journey
@@ -121,7 +129,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Giveaways Section */}
-      <section className="py-20 bg-gradient-to-br from-pink-50 via-rose-50 to-maroon-50">
+      <section id="giveaways" className="py-20 bg-gradient-to-br from-pink-50 via-rose-50 to-maroon-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12">
             <div className="mb-8 lg:mb-0">
@@ -174,8 +182,8 @@ export const HomePage: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-16">
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 shadow-xl max-w-md mx-auto">
-                <Trophy className="w-20 h-20 text-pink-300 mx-auto mb-6" />
+              <div className="bg-gradient-to-br from-pink-100 to-rose-100 backdrop-blur-sm rounded-3xl p-12 shadow-xl max-w-md mx-auto">
+                <Trophy className="w-20 h-20 text-pink-400 mx-auto mb-6" />
                 <h3 className="text-2xl font-bold text-maroon-800 mb-4">No Giveaways Found</h3>
                 <p className="text-gray-600 mb-8 leading-relaxed">
                   {searchQuery || statusFilter !== 'all' 
@@ -198,7 +206,7 @@ export const HomePage: React.FC = () => {
 
       {/* CTA Section */}
       <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-rose-maroon"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-rose-600 via-maroon-600 to-pink-700"></div>
         <div className="absolute inset-0 bg-pattern-circles-white opacity-20"></div>
         
         <div className="relative max-w-5xl mx-auto text-center px-4 sm:px-6 lg:px-8">
@@ -220,7 +228,7 @@ export const HomePage: React.FC = () => {
             as={Link}
             to="/auth/signup"
             size="xl"
-            className="bg-white text-maroon-700 hover:bg-pink-50 shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 px-12"
+            className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 px-12"
           >
             <Heart className="w-5 h-5 mr-2" />
             Start Creating Magic Today
