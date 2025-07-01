@@ -12,7 +12,7 @@ export interface InstagramComment {
   text: string;
   timestamp: string;
   like_count?: number;
-  user: {
+  user?: {
     id: string;
     username: string;
     profile_url: string;
@@ -57,9 +57,9 @@ export interface ExtractCommentsRequest {
 
 export interface ExtractCommentsResponse {
   success: boolean;
-  comments: InstagramComment[];
-  post: InstagramPost;
-  total_count: number;
+  comments?: InstagramComment[];
+  post?: InstagramPost;
+  total_count?: number;
   error?: string;
 }
 
@@ -108,7 +108,7 @@ export const isValidInstagramUrl = (url: string): boolean => {
 };
 
 // Instagram API client class
-export class InstagramAPI {
+class InstagramAPI {
   private config: InstagramConfig;
   private baseUrl: string;
 
