@@ -199,8 +199,8 @@ export const InstagramCommentPickerPage: React.FC = () => {
       if (!allowDuplicateUsers) {
         const uniqueUsers = new Map();
         availableComments.forEach(comment => {
-          if (!uniqueUsers.has(comment.username.toLowerCase())) {
-            uniqueUsers.set(comment.username.toLowerCase(), comment);
+          if (!uniqueUsers.has(comment.username?.toLowerCase())) {
+            uniqueUsers.set(comment.username?.toLowerCase(), comment);
           }
         });
         availableComments = Array.from(uniqueUsers.values());
@@ -220,7 +220,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
 
         if (!allowDuplicateUsers) {
           availableComments = availableComments.filter(c => 
-            c.username.toLowerCase() !== winner.username.toLowerCase()
+            c.username?.toLowerCase() !== winner.username?.toLowerCase()
           );
         } else {
           availableComments.splice(randomIndex, 1);
@@ -256,7 +256,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       },
       statistics: {
         totalComments: comments.length,
-        uniqueUsers: new Set(comments.map(c => c.username.toLowerCase())).size,
+        uniqueUsers: new Set(comments.filter(c => !!c.username).map(c => c.username!.toLowerCase())).size,
         totalLikes: comments.reduce((sum, c) => sum + (c.like_count || 0), 0)
       },
       winners: winners.map(w => ({
