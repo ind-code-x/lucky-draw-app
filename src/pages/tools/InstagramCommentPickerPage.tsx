@@ -103,7 +103,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       for (const page of pagesData.data) {
         try {
           const igResponse = await fetch(
-            `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
+            `https://graph.facebook.com/v19.0/712069925320615?fields=instagram_business_account&access_token=${accessToken}`
           );
           
           if (igResponse.ok) {
