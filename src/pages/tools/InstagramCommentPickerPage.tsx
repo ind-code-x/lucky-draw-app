@@ -172,6 +172,11 @@ export const InstagramCommentPickerPage: React.FC = () => {
       toast.success(`Fetched ${commentsData.data.length} comments.`);
     } catch (err: any) {
       toast.error(err.message || 'An unexpected error occurred');
+      } finally {
+      setIsLoading(false);
+      setIsCollecting(false);
+    }
+  };
       
   // Draw winners
   const drawWinners = () => {
