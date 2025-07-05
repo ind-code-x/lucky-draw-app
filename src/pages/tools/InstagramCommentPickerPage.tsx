@@ -256,7 +256,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       },
       statistics: {
         totalComments: comments.length,
-        uniqueUsers: {new Set(comments.filter(c => !!c.username).map(c => c.username.toLowerCase())).size},
+        uniqueUsers: new Set( comments.filter(c => !!c.username).map(c => c.username.toLowerCase())).size,
         totalLikes: comments.reduce((sum, c) => sum + (c.like_count || 0), 0)
       },
       winners: winners.map(w => ({
