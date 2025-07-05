@@ -599,7 +599,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
                     </div>
                     <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-purple-800">
-                        {new Set(comments.map(c => c.username.toLowerCase())).size}
+                        {new Set(comments.filter(c => !!c.username).map(c => c.username.toLowerCase())).size}
                       </div>
                       <div className="text-sm text-purple-600">Unique Users</div>
                     </div>
@@ -663,7 +663,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
                   <div className="text-xs text-gray-500 text-center">
                     Drawing from {comments.length} comments
                     {!allowDuplicateUsers && (
-                      <span> ({new Set(comments.map(c => c.username.toLowerCase())).size} unique users)</span>
+                      <span> ({new Set(comments.filter(c => !!c.username).map(c => c.username.toLowerCase())).size} unique users)</span>
                     )}
                   </div>
                 )}
