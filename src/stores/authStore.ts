@@ -10,12 +10,15 @@ interface AuthState {
   signUp: (email: string, password: string, username: string, role?: 'participant' | 'organizer') => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  isSubscribed: boolean;
+  checkSubscription: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   loading: true,
+  isSubscribed: false,
 
   initialize: async () => {
     try {
@@ -46,19 +49,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             console.error('Error creating profile:', createError);
           } else {
             set({ user: session.user, profile: newProfile, loading: false });
+            // Check subscription status
+            const isSubscribed = await get().checkSubscription();
+            set({ isSubscribed });
           }
         } else if (!error) {
           set({ user: session.user, profile, loading: false });
+          // Check subscription status
+          const isSubscribed = await get().checkSubscription();
+          set({ isSubscribed });
         } else {
           console.error('Error fetching profile:', error);
           set({ user: session.user, profile: null, loading: false });
         }
       } else {
-        set({ user: null, profile: null, loading: false });
+        set({ user: null, profile: null, loading: false, isSubscribed: false });
       }
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           // Try to get existing profile
           const { data: profile, error } = await supabase
@@ -85,17 +94,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               set({ user: session.user, profile: null });
             } else {
               set({ user: session.user, profile: newProfile });
+              // Check subscription status
+              const isSubscribed = await get().checkSubscription();
+              set({ isSubscribed });
             }
           } else if (!error) {
             set({ user: session.user, profile });
+            // Check subscription status
+            const isSubscribed = await get().checkSubscription();
+            set({ isSubscribed });
           } else {
             console.error('Error fetching profile:', error);
             set({ user: session.user, profile: null });
           }
         } else {
-          set({ user: null, profile: null });
+          set({ user: null, profile: null, isSubscribed: false });
         }
       });
+
+      return () => {
+        subscription.unsubscribe();
+      };
     } catch (error) {
       console.error('Auth initialization error:', error);
       set({ loading: false });
@@ -162,7 +181,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // Clear user data on sign out
+      set({ user: null, profile: null, isSubscribed: false });
+      // Redirect to home page after successful sign out
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
+    }
   },
+  
+  checkSubscription: async () => {
+    // Function to check if the user has an active subscription
+    const user = get().user;
+    if (!user) return false;
+    
+    try {
+      // Query subscriptions table to check for active subscription
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking subscription:', error);
+        return false;
+      }
+      
+      return !!data; // Return true if subscription data exists and is active
+    } catch (error) {
+      console.error('Error in subscription check:', error);
+      return false;
+    }
+  }
 }));

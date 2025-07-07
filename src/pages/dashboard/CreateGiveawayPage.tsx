@@ -11,7 +11,14 @@ import {
   Save,
   Eye,
   Upload,
-  X
+  X,
+  Instagram,
+  Twitter,
+  Youtube,
+  Globe,
+  Facebook,
+  Mail,
+  CheckCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
@@ -27,6 +34,12 @@ interface GiveawayFormData {
   start_time: string;
   end_time: string;
   announce_time: string;
+  entry_methods: {
+    type: string;
+    value: string;
+    points: number;
+    required: boolean;
+  }[];
   prizes: {
     name: string;
     value: number;
@@ -49,13 +62,22 @@ export const CreateGiveawayPage: React.FC = () => {
       start_time: '',
       end_time: '',
       announce_time: '',
+      entry_methods: [
+        { type: 'instagram_follow', value: '', points: 5, required: true },
+        { type: 'email_signup', value: '', points: 3, required: true },
+      ],
       prizes: [{ name: '', value: 0, quantity: 1, description: '' }]
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: prizeFields, append: appendPrize, remove: removePrize } = useFieldArray({
     control,
     name: 'prizes'
+  });
+  
+  const { fields: entryMethodFields, append: appendEntryMethod, remove: removeEntryMethod } = useFieldArray({
+    control,
+    name: 'entry_methods'
   });
 
   if (!user || profile?.role !== 'organizer') {
@@ -68,6 +90,15 @@ export const CreateGiveawayPage: React.FC = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
   };
+  
+  const entryMethodOptions = [
+    { value: 'instagram_follow', label: 'Follow on Instagram', icon: Instagram },
+    { value: 'twitter_follow', label: 'Follow on Twitter', icon: Twitter },
+    { value: 'facebook_like', label: 'Like Facebook Page', icon: Facebook },
+    { value: 'youtube_subscribe', label: 'Subscribe on YouTube', icon: Youtube },
+    { value: 'email_signup', label: 'Join Email List', icon: Mail },
+    { value: 'website_visit', label: 'Visit Website', icon: Globe },
+  ];
 
   const onSubmit = async (data: GiveawayFormData) => {
     setLoading(true);
@@ -91,6 +122,17 @@ export const CreateGiveawayPage: React.FC = () => {
         return;
       }
       
+      // Convert entry methods to a config object
+      const entry_config = {};
+      data.entry_methods.forEach(method => {
+        entry_config[method.type] = {
+          enabled: true,
+          points: method.points,
+          value: method.value,
+          required: method.required
+        };
+      });
+      
       const giveawayData = {
         organizer_id: user.id,
         title: data.title,
@@ -101,11 +143,7 @@ export const CreateGiveawayPage: React.FC = () => {
         end_time: data.end_time,
         announce_time: data.announce_time,
         status: 'active' as const, // Set to active for testing
-        entry_config: {
-          email_signup: { enabled: true, points: 5 },
-          social_follow: { enabled: true, points: 3 },
-          referral: { enabled: true, points: 10 }
-        }
+        entry_config
       };
 
       const giveawayId = await createGiveaway(giveawayData, data.prizes);
@@ -120,12 +158,22 @@ export const CreateGiveawayPage: React.FC = () => {
   };
 
   const addPrize = () => {
-    append({ name: '', value: 0, quantity: 1, description: '' });
+    appendPrize({ name: '', value: 0, quantity: 1, description: '' });
   };
 
-  const removePrize = (index: number) => {
-    if (fields.length > 1) {
-      remove(index);
+  const removePrizeField = (index: number) => {
+    if (prizeFields.length > 1) {
+      removePrize(index);
+    }
+  };
+  
+  const addEntryMethod = () => {
+    appendEntryMethod({ type: 'website_visit', value: '', points: 1, required: false });
+  };
+  
+  const removeEntryMethodField = (index: number) => {
+    if (entryMethodFields.length > 1) {
+      removeEntryMethod(index);
     }
   };
 
@@ -197,6 +245,110 @@ export const CreateGiveawayPage: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Entry Methods */}
+          <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                  <CheckCircle className="w-6 h-6 mr-3 text-pink-600" />
+                  Entry Methods
+                </CardTitle>
+                <Button
+                  type="button"
+                  onClick={addEntryMethod}
+                  size="sm"
+                  icon={Plus}
+                  className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"
+                >
+                  Add Method
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {entryMethodFields.map((field, index) => {
+                const methodType = watch(`entry_methods.${index}.type`);
+                const EntryIcon = entryMethodOptions.find(option => option.value === methodType)?.icon || Globe;
+                
+                return (
+                  <div key={field.id} className="p-6 rounded-xl bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200 relative">
+                    {entryMethodFields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeEntryMethodField(index)}
+                        className="absolute top-4 right-4 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    
+                    <div className="flex items-center mb-4 gap-2">
+                      <EntryIcon className="w-5 h-5 text-maroon-600" />
+                      <h4 className="text-lg font-semibold text-maroon-800">Entry Method {index + 1}</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Method Type</label>
+                        <select
+                          {...register(`entry_methods.${index}.type`, { required: 'Method type is required' })}
+                          className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:border-maroon-400 focus:ring-maroon-400 bg-white"
+                        >
+                          {entryMethodOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.entry_methods?.[index]?.type && (
+                          <p className="mt-1 text-sm text-red-600">{errors.entry_methods[index].type.message}</p>
+                        )}
+                      </div>
+
+                      <Input
+                        label="Value"
+                        placeholder={methodType.includes('instagram') ? "@username or URL" : 
+                                    methodType.includes('website') ? "https://yourwebsite.com" : 
+                                    "Profile URL or identifier"}
+                        {...register(`entry_methods.${index}.value`, { 
+                          required: 'Value is required'
+                        })}
+                        error={errors.entry_methods?.[index]?.value?.message}
+                        fullWidth
+                        className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                      />
+
+                      <Input
+                        label="Points"
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        {...register(`entry_methods.${index}.points`, { 
+                          required: 'Points are required',
+                          min: { value: 1, message: 'Points must be at least 1' }
+                        })}
+                        error={errors.entry_methods?.[index]?.points?.message}
+                        fullWidth
+                        className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                      />
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`required-${index}`}
+                        className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
+                        {...register(`entry_methods.${index}.required`)}
+                      />
+                      <label htmlFor={`required-${index}`} className="ml-2 text-sm text-gray-700">
+                        Make this entry method required
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
           {/* Timing */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
@@ -258,12 +410,12 @@ export const CreateGiveawayPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {fields.map((field, index) => (
+              {prizeFields.map((field, index) => (
                 <div key={field.id} className="p-6 rounded-xl bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200 relative">
-                  {fields.length > 1 && (
+                  {prizeFields.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => removePrize(index)}
+                      onClick={() => removePrizeField(index)}
                       className="absolute top-4 right-4 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
                     >
                       <X className="w-4 h-4" />

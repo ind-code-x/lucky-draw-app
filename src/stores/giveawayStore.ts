@@ -12,6 +12,9 @@ interface GiveawayState {
   createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>;
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: string) => void;
+  addParticipant: (giveawayId: string, userId: string) => Promise<void>;
+  fetchParticipants: (giveawayId: string) => Promise<any[]>;
+  selectRandomWinner: (giveawayId: string, prizeId: string) => Promise<any>;
 }
 
 export const useGiveawayStore = create<GiveawayState>((set, get) => ({
@@ -32,7 +35,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           profiles!giveaways_organizer_id_fkey(*),
           prizes(*)
         `)
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -41,7 +43,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
           .select('*')
-          .eq('status', 'active')
           .order('created_at', { ascending: false });
 
         if (basicError) throw basicError;
@@ -165,4 +166,115 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
 
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   setStatusFilter: (status: string) => set({ statusFilter: status }),
+
+  addParticipant: async (giveawayId: string, userId: string) => {
+    try {
+      // Generate a unique referral code
+      const referralCode = `${userId.substring(0, 5)}-${Math.random().toString(36).substring(2, 7)}`;
+      
+      // First check if the participant already exists
+      const { data: existingParticipant, error: checkError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('giveaway_id', giveawayId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (checkError) throw checkError;
+      
+      // If participant already exists, don't add again
+      if (existingParticipant) {
+        return;
+      }
+      
+      // Add new participant
+      const { error } = await supabase
+        .from('participants')
+        .insert({
+          giveaway_id: giveawayId,
+          user_id: userId,
+          referral_code: referralCode,
+          total_entries: 1, // Start with one entry
+        });
+        
+      if (error) throw error;
+      
+      // Update the giveaway's total entries and unique participants
+      const { data: giveaway } = await supabase
+        .from('giveaways')
+        .select('total_entries, unique_participants')
+        .eq('id', giveawayId)
+        .single();
+        
+      if (giveaway) {
+        await supabase
+          .from('giveaways')
+          .update({
+            total_entries: (giveaway.total_entries || 0) + 1,
+            unique_participants: (giveaway.unique_participants || 0) + 1
+          })
+          .eq('id', giveawayId);
+      }
+    } catch (error) {
+      console.error('Error adding participant:', error);
+      throw error;
+    }
+  },
+
+  fetchParticipants: async (giveawayId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('participants')
+        .select(`
+          *,
+          profiles:user_id(*)
+        `)
+        .eq('giveaway_id', giveawayId);
+        
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching participants:', error);
+      return [];
+    }
+  },
+  
+  selectRandomWinner: async (giveawayId: string, prizeId: string) => {
+    try {
+      // Get all participants for this giveaway
+      const { data: participants, error } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('giveaway_id', giveawayId);
+        
+      if (error) throw error;
+      if (!participants || participants.length === 0) {
+        throw new Error('No participants found for this giveaway');
+      }
+      
+      // Select a random participant
+      const randomIndex = Math.floor(Math.random() * participants.length);
+      const winner = participants[randomIndex];
+      
+      // Record the winner in the winners table
+      const { data: winnerRecord, error: winnerError } = await supabase
+        .from('winners')
+        .insert({
+          giveaway_id: giveawayId,
+          prize_id: prizeId,
+          participant_id: winner.id,
+          status: 'pending_contact',
+          drawn_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+        
+      if (winnerError) throw winnerError;
+      
+      return { winner, winnerRecord };
+    } catch (error) {
+      console.error('Error selecting winner:', error);
+      throw error;
+    }
+  }
 }));

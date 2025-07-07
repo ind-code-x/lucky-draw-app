@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -12,22 +12,91 @@ import {
   Star,
   Clock,
   Award,
-  Search
+  Search,
+  List,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuthStore } from '../../stores/authStore';
 import { useGiveawayStore } from '../../stores/giveawayStore';
+import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
   const { user, profile } = useAuthStore();
-  const { giveaways, fetchGiveaways } = useGiveawayStore();
+  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner } = useGiveawayStore();
+  const [selectedGiveaway, setSelectedGiveaway] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [winners, setWinners] = useState([]);
+  const [showParticipants, setShowParticipants] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchGiveaways();
     }
   }, [user, fetchGiveaways]);
+
+  const loadParticipants = async (giveawayId) => {
+    if (giveawayId) {
+      setLoading(true);
+      try {
+        const participantData = await fetchParticipants(giveawayId);
+        setParticipants(participantData);
+      } catch (error) {
+        console.error('Error fetching participants:', error);
+        toast.error('Failed to load participants');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleSelectGiveaway = (giveaway) => {
+    setSelectedGiveaway(giveaway);
+    loadParticipants(giveaway.id);
+    setWinners([]);
+    setShowParticipants(true);
+  };
+
+  const handleSelectWinner = async (giveawayId) => {
+    if (!selectedGiveaway || !selectedGiveaway.prizes || selectedGiveaway.prizes.length === 0) {
+      toast.error('No prizes available for this giveaway');
+      return;
+    }
+    
+    if (participants.length === 0) {
+      toast.error('No participants available to select a winner');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // For simplicity, we'll use the first prize
+      const prizeId = selectedGiveaway.prizes[0].id;
+      const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeId);
+      
+      // Find the winner's details from participants
+      const winnerWithDetails = participants.find(p => p.id === winner.id);
+      
+      // Add to winners list
+      if (winnerWithDetails) {
+        const newWinner = {
+          ...winnerWithDetails,
+          prize: selectedGiveaway.prizes[0],
+          winnerRecord
+        };
+        setWinners(prev => [...prev, newWinner]);
+        toast.success('Winner selected successfully!');
+      }
+    } catch (error) {
+      console.error('Error selecting winner:', error);
+      toast.error(error.message || 'Failed to select winner');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) {
     return <Navigate to="/auth/login" replace />;
@@ -122,92 +191,214 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Recent Giveaways */}
-            <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
-                    <Trophy className="w-6 h-6 mr-3 text-pink-600" />
-                    Your Giveaways
-                  </CardTitle>
-                  {userGiveaways.length > 0 && (
-                    <Button
-                      as={Link}
-                      to="/dashboard/giveaways"
-                      variant="ghost"
-                      size="sm"
-                      className="text-maroon-600 hover:text-pink-600 hover:bg-pink-50"
-                    >
-                      View All
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {userGiveaways.length > 0 ? (
-                  <div className="space-y-4">
-                    {userGiveaways.slice(0, 5).map((giveaway) => (
-                      <div key={giveaway.id} className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100 transition-all duration-300">
-                        <div className="flex items-center space-x-4">
-                          <div className="bg-gradient-to-br from-maroon-500 to-pink-500 p-2 rounded-lg">
-                            <Gift className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-maroon-800">{giveaway.title}</h3>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
-                              <span className="flex items-center">
-                                <Users className="w-4 h-4 mr-1" />
-                                {giveaway.total_entries || 0} entries
-                              </span>
-                              <span className="flex items-center">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                Ends {new Date(giveaway.end_time).toLocaleDateString()}
-                              </span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+              <div className="lg:col-span-1">
+                <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                        <Trophy className="w-6 h-6 mr-3 text-pink-600" />
+                        Your Giveaways
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {userGiveaways.length > 0 ? (
+                      <div className="space-y-4">
+                        {userGiveaways.slice(0, 10).map((giveaway) => (
+                          <div 
+                            key={giveaway.id} 
+                            className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer
+                              ${selectedGiveaway && selectedGiveaway.id === giveaway.id 
+                                ? 'bg-gradient-to-r from-maroon-100 to-pink-100 border-l-4 border-maroon-500'
+                                : 'bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100'
+                              }
+                            `}
+                            onClick={() => handleSelectGiveaway(giveaway)}
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div className="bg-gradient-to-br from-maroon-500 to-pink-500 p-2 rounded-lg">
+                                <Gift className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-maroon-800">{giveaway.title}</h3>
+                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                  <span className="flex items-center">
+                                    <Users className="w-4 h-4 mr-1" />
+                                    {giveaway.total_entries || 0} entries
+                                  </span>
+                                </div>
+                              </div>
                             </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              giveaway.status === 'active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {giveaway.status}
+                            </span>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            giveaway.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {giveaway.status}
-                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <AlertCircle className="w-12 h-12 text-pink-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No giveaways yet</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-2">
+                {showParticipants && selectedGiveaway ? (
+                  <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                          <Users className="w-6 h-6 mr-3 text-pink-600" />
+                          Participants for: {selectedGiveaway.title}
+                        </CardTitle>
+                        <div className="flex space-x-2">
                           <Button
-                            as={Link}
-                            to={`/dashboard/giveaway/${giveaway.id}`}
                             size="sm"
                             variant="ghost"
+                            onClick={() => setShowParticipants(false)}
                             className="text-maroon-600 hover:text-pink-600 hover:bg-pink-50"
                           >
-                            Manage
+                            Back
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSelectWinner(selectedGiveaway.id)}
+                            loading={loading}
+                            className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
+                          >
+                            <Trophy className="w-4 h-4 mr-2" />
+                            Draw Winner
                           </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </CardHeader>
+                    <CardContent>
+                      {loading ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-700"></div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Winners Section */}
+                          {winners.length > 0 && (
+                            <div className="mb-8">
+                              <h3 className="text-xl font-bold text-maroon-800 mb-4 flex items-center">
+                                <Award className="w-5 h-5 mr-2 text-pink-600" />
+                                Winners
+                              </h3>
+                              <div className="space-y-3">
+                                {winners.map((winner, idx) => (
+                                  <div key={idx} className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
+                                    <div className="flex items-center space-x-3">
+                                      <div className="bg-gradient-to-br from-amber-500 to-yellow-500 p-2 rounded-full">
+                                        <Trophy className="w-5 h-5 text-white" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="font-semibold text-amber-800">
+                                          {winner.profiles?.username || 'Anonymous'} 
+                                          <span className="text-sm font-normal ml-2 text-amber-700">
+                                            (Prize: {winner.prize?.name || 'Unknown'})
+                                          </span>
+                                        </h4>
+                                        <p className="text-sm text-amber-700">
+                                          Selected on {new Date(winner.winnerRecord?.drawn_at).toLocaleString()}
+                                        </p>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-amber-700 hover:bg-amber-100"
+                                        onClick={() => alert(`Contact ${winner.profiles?.email || 'the winner'}`)}
+                                      >
+                                        Contact
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Participants List */}
+                          <div>
+                            <h3 className="text-xl font-bold text-maroon-800 mb-4 flex items-center">
+                              <List className="w-5 h-5 mr-2 text-pink-600" />
+                              Participants ({participants.length})
+                            </h3>
+                            {participants.length > 0 ? (
+                              <div className="max-h-80 overflow-y-auto space-y-2">
+                                {participants.map((participant) => (
+                                  <div key={participant.id} className="p-3 rounded-lg bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100 transition-all duration-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 bg-gradient-to-br from-maroon-500 to-pink-500 rounded-full flex items-center justify-center">
+                                          <span className="text-white text-xs font-bold">
+                                            {participant.profiles?.username?.charAt(0).toUpperCase() || 'U'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <h4 className="font-medium text-maroon-800">
+                                            {participant.profiles?.username || 'Anonymous'}
+                                          </h4>
+                                          <p className="text-xs text-gray-600">
+                                            {participant.profiles?.email || 'No email available'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 text-maroon-700">
+                                          {participant.total_entries || 1} entries
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8 bg-pink-50 rounded-xl">
+                                <Users className="w-12 h-12 text-pink-300 mx-auto mb-2" />
+                                <p className="text-pink-700">No participants yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="bg-gradient-to-br from-pink-100 to-rose-100 rounded-full p-8 w-32 h-32 mx-auto mb-6">
-                      <Sparkles className="w-16 h-16 text-pink-500 mx-auto" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-maroon-800 mb-4">Create Your First Giveaway</h3>
-                    <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
-                      Start engaging your audience with magical giveaways that create lasting connections.
-                    </p>
-                    <Button
-                      as={Link}
-                      to="/dashboard/create"
-                      size="lg"
-                      icon={Plus}
-                      className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                    >
-                      Create Your First Giveaway
-                    </Button>
-                  </div>
+                  <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
+                    <CardContent className="p-8 text-center">
+                      <div className="bg-gradient-to-br from-pink-100 to-rose-100 rounded-full p-8 w-32 h-32 mx-auto mb-6">
+                        <Gift className="w-16 h-16 text-maroon-500 mx-auto" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-maroon-800 mb-4">Select a Giveaway</h3>
+                      <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
+                        Choose a giveaway from the list to view participants and manage winners.
+                      </p>
+                      {userGiveaways.length === 0 && (
+                        <Button
+                          as={Link}
+                          to="/dashboard/create"
+                          size="lg"
+                          icon={Plus}
+                          className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                        >
+                          Create Your First Giveaway
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </>
         ) : (
           /* Participant Dashboard */

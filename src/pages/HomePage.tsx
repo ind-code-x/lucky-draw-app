@@ -5,9 +5,12 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { GiveawayCard } from '../components/giveaway/GiveawayCard';
 import { useGiveawayStore } from '../stores/giveawayStore';
+import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 export const HomePage: React.FC = () => {
   const { giveaways, loading, searchQuery, statusFilter, fetchGiveaways, setSearchQuery, setStatusFilter } = useGiveawayStore();
+  const { user, isSubscribed } = useAuthStore();
 
   useEffect(() => {
     fetchGiveaways();
@@ -28,6 +31,23 @@ export const HomePage: React.FC = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+  
+  const handleGiveawayClick = (giveaway) => {
+    if (!user) {
+      toast.error('Please sign in to participate in giveaways');
+      return;
+    }
+    
+    if (!isSubscribed) {
+      toast.error('You need to be subscribed to participate in giveaways');
+      // Redirect to subscription page
+      window.location.href = '/subscription';
+      return;
+    }
+    
+    // If user is logged in and subscribed, proceed to giveaway
+    alert(`Entering giveaway: ${giveaway.title}`);
   };
 
   return (
@@ -134,7 +154,7 @@ export const HomePage: React.FC = () => {
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12">
             <div className="mb-8 lg:mb-0">
               <h2 className="text-4xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-4">
-                Active Giveaways
+                All Available Giveaways
               </h2>
               <p className="text-xl text-gray-600">Join these magical giveaways before they end!</p>
             </div>
@@ -177,7 +197,9 @@ export const HomePage: React.FC = () => {
           ) : filteredGiveaways.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredGiveaways.map((giveaway) => (
-                <GiveawayCard key={giveaway.id} giveaway={giveaway} />
+                <div key={giveaway.id} onClick={() => handleGiveawayClick(giveaway)}>
+                  <GiveawayCard giveaway={giveaway} />
+                </div>
               ))}
             </div>
           ) : (

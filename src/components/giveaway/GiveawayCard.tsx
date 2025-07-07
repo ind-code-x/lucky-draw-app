@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Users, Trophy, Clock, Heart, Sparkles } from 'lucide-react';
+import { Calendar, Users, Trophy, Clock, Heart, Sparkles, Lock } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Giveaway } from '../../lib/supabase';
 import { formatDistanceToNow, isAfter } from 'date-fns';
+import { useAuthStore } from '../../stores/authStore';
 
 interface GiveawayCardProps {
   giveaway: Giveaway;
@@ -12,12 +13,19 @@ interface GiveawayCardProps {
 export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
   const isEnded = isAfter(new Date(), new Date(giveaway.end_time));
   const timeLeft = formatDistanceToNow(new Date(giveaway.end_time), { addSuffix: true });
+  const { user, isSubscribed } = useAuthStore();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Let the parent component handle clicks
+    // The parent component will check subscription status
+  };
 
   return (
     <Card 
       hover 
-      className="overflow-hidden h-full flex flex-col bg-white/90 backdrop-blur-sm border-pink-200 hover:border-maroon-300 hover:shadow-2xl transform hover:scale-105 transition-all duration-300" 
+      className="overflow-hidden h-full flex flex-col bg-white/90 backdrop-blur-sm border-pink-200 hover:border-maroon-300 hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer" 
       padding="none"
+      onClick={handleCardClick}
     >
       {/* Banner Image */}
       <div className="relative h-48 bg-gradient-to-br from-maroon-500 via-pink-500 to-rose-400">
@@ -118,17 +126,28 @@ export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
           </div>
 
           <button
-            onClick={() => alert(`Giveaway details for: ${giveaway.title}\n\nThis would normally navigate to the giveaway detail page.`)}
             className={`block w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
               isEnded 
                 ? 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white'
-                : 'bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 text-white'
+                : !user || !isSubscribed
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white'
+                  : 'bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 text-white'
             }`}
           >
             {isEnded ? (
               <>
                 <Trophy className="w-4 h-4 inline mr-2" />
                 View Results
+              </>
+            ) : !user ? (
+              <>
+                <Lock className="w-4 h-4 inline mr-2" />
+                Sign In to Enter
+              </>
+            ) : !isSubscribed ? (
+              <>
+                <Lock className="w-4 h-4 inline mr-2" />
+                Subscribe to Enter
               </>
             ) : (
               <>
