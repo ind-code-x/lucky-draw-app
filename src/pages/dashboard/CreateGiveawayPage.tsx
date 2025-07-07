@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { 
@@ -61,7 +61,7 @@ export const CreateGiveawayPage: React.FC = () => {
   const defaultEndTime = nextWeek.toISOString().slice(0, 16);
   const defaultAnnounceTime = nextWeekPlus1.toISOString().slice(0, 16);
 
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm<GiveawayFormData>({
+  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<GiveawayFormData>({
     defaultValues: {
       title: '',
       description: '',
@@ -71,7 +71,6 @@ export const CreateGiveawayPage: React.FC = () => {
       announce_time: defaultAnnounceTime,
       entry_methods: [
         { type: 'instagram_follow', value: '', points: 5, required: false },
-        { type: 'email_signup', value: '', points: 3, required: false },
       ],
       prizes: [{ name: '', value: 0, quantity: 1, description: '' }]
     }
@@ -86,6 +85,20 @@ export const CreateGiveawayPage: React.FC = () => {
     control,
     name: 'entry_methods'
   });
+
+  // Watch the required checkboxes to dynamically update validation
+  const entryMethodsRequired = watch('entry_methods').map(method => method.required);
+
+  // Effect to update validation rules when required status changes
+  useEffect(() => {
+    entryMethodsRequired.forEach((isRequired, index) => {
+      if (isRequired) {
+        setValue(`entry_methods.${index}.value`, watch(`entry_methods.${index}.value`) || '', {
+          shouldValidate: true
+        });
+      }
+    });
+  }, [entryMethodsRequired, setValue, watch]);
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -110,7 +123,17 @@ export const CreateGiveawayPage: React.FC = () => {
   const onSubmit = async (data: GiveawayFormData) => {
     setLoading(true);
     try {
-      // Generate a slug if title is provided
+      // Validate required values for entry methods
+      const invalidEntryMethods = data.entry_methods.filter(
+        method => method.required && !method.value
+      );
+      
+      if (invalidEntryMethods.length > 0) {
+        toast.error('Please provide values for all required entry methods');
+        setLoading(false);
+        return;
+      }
+      
       const slug = data.title ? generateSlug(data.title) : `giveaway-${Date.now()}`;
       
       // Validate dates if provided
@@ -134,26 +157,15 @@ export const CreateGiveawayPage: React.FC = () => {
         }
       }
       
-      // Convert entry methods to a config object, removing empty values for optional fields
+      // Convert entry methods to a config object
       const entry_config = {};
       data.entry_methods.forEach(method => {
-        // Only require value field if the method is marked as required
-        if (!method.required && !method.value) {
-          // For non-required methods without a value, use a default
-          entry_config[method.type] = {
-            enabled: true,
-            points: method.points || 1,
-            value: method.value || '',
-            required: !!method.required
-          };
-        } else {
-          entry_config[method.type] = {
-            enabled: true,
-            points: method.points || 1,
-            value: method.value,
-            required: !!method.required
-          };
-        }
+        entry_config[method.type] = {
+          enabled: true,
+          points: method.points || 1,
+          value: method.value || '',
+          required: !!method.required
+        };
       });
       
       const giveawayData = {
@@ -169,12 +181,12 @@ export const CreateGiveawayPage: React.FC = () => {
         entry_config
       };
 
-      const giveawayId = await createGiveaway(giveawayData, data.prizes);
+      await createGiveaway(giveawayData, data.prizes);
       toast.success('Giveaway created successfully! ✨');
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Create giveaway error:', error);
-      toast.error(error.message || 'Failed to create giveaway');
+      toast.error(error instanceof Error ? error.message : 'Failed to create giveaway');
     } finally {
       setLoading(false);
     }
@@ -198,6 +210,17 @@ export const CreateGiveawayPage: React.FC = () => {
     if (entryMethodFields.length > 1) {
       removeEntryMethod(index);
     }
+  };
+
+  // Custom validation function for required entry methods
+  const validateEntryMethodValue = (index: number) => {
+    return (value: string) => {
+      const isRequired = watch(`entry_methods.${index}.required`);
+      if (isRequired && !value) {
+        return 'Value is required for required methods';
+      }
+      return true;
+    };
   };
 
   return (
@@ -321,7 +344,7 @@ export const CreateGiveawayPage: React.FC = () => {
                                     methodType.includes('website') ? "https://yourwebsite.com" : 
                                     "Profile URL or identifier"}
                         {...register(`entry_methods.${index}.value`, { 
-                          required: isRequired ? 'Value is required for required methods' : false
+                          validate: validateEntryMethodValue(index)
                         })}
                         error={errors.entry_methods?.[index]?.value?.message}
                         fullWidth
@@ -349,6 +372,15 @@ export const CreateGiveawayPage: React.FC = () => {
                         id={`required-${index}`}
                         className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
+                        onChange={(e) => {
+                          setValue(`entry_methods.${index}.required`, e.target.checked);
+                          // If it's now required, trigger validation on the value field
+                          if (e.target.checked) {
+                            setValue(`entry_methods.${index}.value`, watch(`entry_methods.${index}.value`) || '', {
+                              shouldValidate: true
+                            });
+                          }
+                        }}
                       />
                       <label htmlFor={`required-${index}`} className="ml-2 text-sm text-gray-700">
                         Make this entry method required
