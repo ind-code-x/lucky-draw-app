@@ -4,13 +4,11 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { 
   Gift, 
   Plus, 
-  Trash2, 
   Calendar, 
   Trophy,
   Sparkles,
   Save,
   Eye,
-  Upload,
   X,
   Instagram,
   Twitter,
@@ -54,17 +52,26 @@ export const CreateGiveawayPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  // Set default dates for initialization
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const nextWeekPlus1 = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
+
+  const defaultStartTime = now.toISOString().slice(0, 16);
+  const defaultEndTime = nextWeek.toISOString().slice(0, 16);
+  const defaultAnnounceTime = nextWeekPlus1.toISOString().slice(0, 16);
+
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm<GiveawayFormData>({
     defaultValues: {
       title: '',
       description: '',
       rules: '',
-      start_time: '',
-      end_time: '',
-      announce_time: '',
+      start_time: defaultStartTime,
+      end_time: defaultEndTime,
+      announce_time: defaultAnnounceTime,
       entry_methods: [
-        { type: 'instagram_follow', value: '', points: 5, required: true },
-        { type: 'email_signup', value: '', points: 3, required: true },
+        { type: 'instagram_follow', value: '', points: 5, required: false },
+        { type: 'email_signup', value: '', points: 3, required: false },
       ],
       prizes: [{ name: '', value: 0, quantity: 1, description: '' }]
     }
@@ -103,34 +110,50 @@ export const CreateGiveawayPage: React.FC = () => {
   const onSubmit = async (data: GiveawayFormData) => {
     setLoading(true);
     try {
-      const slug = generateSlug(data.title);
+      // Generate a slug if title is provided
+      const slug = data.title ? generateSlug(data.title) : `giveaway-${Date.now()}`;
       
-      // Validate dates
-      const startTime = new Date(data.start_time);
-      const endTime = new Date(data.end_time);
-      const announceTime = new Date(data.announce_time);
-      
-      if (startTime >= endTime) {
-        toast.error('End time must be after start time');
-        setLoading(false);
-        return;
+      // Validate dates if provided
+      if (data.start_time && data.end_time) {
+        const startTime = new Date(data.start_time);
+        const endTime = new Date(data.end_time);
+        
+        if (startTime >= endTime) {
+          toast.error('End time must be after start time');
+          setLoading(false);
+          return;
+        }
+        
+        if (data.announce_time) {
+          const announceTime = new Date(data.announce_time);
+          if (endTime > announceTime) {
+            toast.error('Announcement time must be after end time');
+            setLoading(false);
+            return;
+          }
+        }
       }
       
-      if (endTime > announceTime) {
-        toast.error('Announcement time must be after end time');
-        setLoading(false);
-        return;
-      }
-      
-      // Convert entry methods to a config object
+      // Convert entry methods to a config object, removing empty values for optional fields
       const entry_config = {};
       data.entry_methods.forEach(method => {
-        entry_config[method.type] = {
-          enabled: true,
-          points: method.points,
-          value: method.value,
-          required: method.required
-        };
+        // Only require value field if the method is marked as required
+        if (!method.required && !method.value) {
+          // For non-required methods without a value, use a default
+          entry_config[method.type] = {
+            enabled: true,
+            points: method.points || 1,
+            value: method.value || '',
+            required: !!method.required
+          };
+        } else {
+          entry_config[method.type] = {
+            enabled: true,
+            points: method.points || 1,
+            value: method.value,
+            required: !!method.required
+          };
+        }
       });
       
       const giveawayData = {
@@ -138,11 +161,11 @@ export const CreateGiveawayPage: React.FC = () => {
         title: data.title,
         slug,
         description: data.description,
-        rules: data.rules,
+        rules: data.rules || '', // Make rules optional
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
-        status: 'active' as const, // Set to active for testing
+        status: 'active' as const,
         entry_config
       };
 
@@ -176,16 +199,6 @@ export const CreateGiveawayPage: React.FC = () => {
       removeEntryMethod(index);
     }
   };
-
-  // Set default dates for testing
-  const now = new Date();
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const nextWeekPlus1 = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
-
-  const defaultStartTime = now.toISOString().slice(0, 16);
-  const defaultEndTime = nextWeek.toISOString().slice(0, 16);
-  const defaultAnnounceTime = nextWeekPlus1.toISOString().slice(0, 16);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
@@ -234,7 +247,7 @@ export const CreateGiveawayPage: React.FC = () => {
               />
 
               <Textarea
-                label="Rules & Terms"
+                label="Rules & Terms (Optional)"
                 placeholder="Enter the rules and terms for your giveaway..."
                 rows={3}
                 {...register('rules')}
@@ -267,6 +280,7 @@ export const CreateGiveawayPage: React.FC = () => {
             <CardContent className="space-y-6">
               {entryMethodFields.map((field, index) => {
                 const methodType = watch(`entry_methods.${index}.type`);
+                const isRequired = watch(`entry_methods.${index}.required`);
                 const EntryIcon = entryMethodOptions.find(option => option.value === methodType)?.icon || Globe;
                 
                 return (
@@ -290,7 +304,7 @@ export const CreateGiveawayPage: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Method Type</label>
                         <select
-                          {...register(`entry_methods.${index}.type`, { required: 'Method type is required' })}
+                          {...register(`entry_methods.${index}.type`)}
                           className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:border-maroon-400 focus:ring-maroon-400 bg-white"
                         >
                           {entryMethodOptions.map(option => (
@@ -299,18 +313,15 @@ export const CreateGiveawayPage: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                        {errors.entry_methods?.[index]?.type && (
-                          <p className="mt-1 text-sm text-red-600">{errors.entry_methods[index].type.message}</p>
-                        )}
                       </div>
 
                       <Input
-                        label="Value"
+                        label={`Value ${isRequired ? '(Required)' : '(Optional)'}`}
                         placeholder={methodType.includes('instagram') ? "@username or URL" : 
                                     methodType.includes('website') ? "https://yourwebsite.com" : 
                                     "Profile URL or identifier"}
                         {...register(`entry_methods.${index}.value`, { 
-                          required: 'Value is required'
+                          required: isRequired ? 'Value is required for required methods' : false
                         })}
                         error={errors.entry_methods?.[index]?.value?.message}
                         fullWidth
@@ -321,9 +332,9 @@ export const CreateGiveawayPage: React.FC = () => {
                         label="Points"
                         type="number"
                         min="1"
-                        placeholder="1"
+                        defaultValue="1"
                         {...register(`entry_methods.${index}.points`, { 
-                          required: 'Points are required',
+                          valueAsNumber: true,
                           min: { value: 1, message: 'Points must be at least 1' }
                         })}
                         error={errors.entry_methods?.[index]?.points?.message}
@@ -362,7 +373,7 @@ export const CreateGiveawayPage: React.FC = () => {
                 label="Start Date & Time"
                 type="datetime-local"
                 defaultValue={defaultStartTime}
-                {...register('start_time', { required: 'Start time is required' })}
+                {...register('start_time')}
                 error={errors.start_time?.message}
                 fullWidth
                 className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
@@ -372,7 +383,7 @@ export const CreateGiveawayPage: React.FC = () => {
                 label="End Date & Time"
                 type="datetime-local"
                 defaultValue={defaultEndTime}
-                {...register('end_time', { required: 'End time is required' })}
+                {...register('end_time')}
                 error={errors.end_time?.message}
                 fullWidth
                 className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
@@ -382,7 +393,7 @@ export const CreateGiveawayPage: React.FC = () => {
                 label="Winner Announcement"
                 type="datetime-local"
                 defaultValue={defaultAnnounceTime}
-                {...register('announce_time', { required: 'Announcement time is required' })}
+                {...register('announce_time')}
                 error={errors.announce_time?.message}
                 fullWidth
                 className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
@@ -428,19 +439,20 @@ export const CreateGiveawayPage: React.FC = () => {
                     <Input
                       label="Prize Name"
                       placeholder="e.g., iPhone 15 Pro"
-                      {...register(`prizes.${index}.name`, { required: 'Prize name is required' })}
+                      {...register(`prizes.${index}.name`)}
                       error={errors.prizes?.[index]?.name?.message}
                       fullWidth
                       className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
                     />
 
                     <Input
-                      label="Value (₹)"
+                      label="Value"
                       type="number"
                       step="0.01"
+                      defaultValue="0"
                       placeholder="0.00"
                       {...register(`prizes.${index}.value`, { 
-                        required: 'Prize value is required',
+                        valueAsNumber: true,
                         min: { value: 0, message: 'Value must be positive' }
                       })}
                       error={errors.prizes?.[index]?.value?.message}
@@ -452,9 +464,10 @@ export const CreateGiveawayPage: React.FC = () => {
                       label="Quantity"
                       type="number"
                       min="1"
+                      defaultValue="1"
                       placeholder="1"
                       {...register(`prizes.${index}.quantity`, { 
-                        required: 'Quantity is required',
+                        valueAsNumber: true,
                         min: { value: 1, message: 'Quantity must be at least 1' }
                       })}
                       error={errors.prizes?.[index]?.quantity?.message}
@@ -464,7 +477,7 @@ export const CreateGiveawayPage: React.FC = () => {
                   </div>
 
                   <Textarea
-                    label="Prize Description"
+                    label="Prize Description (Optional)"
                     placeholder="Describe this amazing prize..."
                     rows={2}
                     {...register(`prizes.${index}.description`)}
