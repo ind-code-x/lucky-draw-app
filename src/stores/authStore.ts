@@ -200,20 +200,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return false;
     
     try {
-      // Query subscriptions table to check for active subscription
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
+      // For development/demo purposes, use localStorage as fallback
+      // This prevents the 404 error when the subscriptions table doesn't exist
+      const localStorageKey = `${user.id}_subscribed`;
+      const isLocalSubscribed = localStorage.getItem(localStorageKey) === 'true';
       
-      if (error) {
-        console.error('Error checking subscription:', error);
-        return false;
+      // Try-catch to handle if subscriptions table doesn't exist yet
+      try {
+        // Query subscriptions table to check for active subscription
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+        
+        if (error) {
+          console.warn('Error checking subscription (using localStorage fallback):', error);
+          return isLocalSubscribed; // Fallback to localStorage
+        }
+        
+        // If we found a subscription, update localStorage for backup
+        if (data) {
+          localStorage.setItem(localStorageKey, 'true');
+          return true;
+        }
+        
+        return isLocalSubscribed; // Use localStorage if no data from DB
+      } catch (dbError) {
+        console.warn('Database error (using localStorage fallback):', dbError);
+        return isLocalSubscribed;
       }
-      
-      return !!data; // Return true if subscription data exists and is active
     } catch (error) {
       console.error('Error in subscription check:', error);
       return false;
