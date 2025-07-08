@@ -123,6 +123,8 @@ export const CreateGiveawayPage: React.FC = () => {
   const onSubmit = async (data: GiveawayFormData) => {
     setLoading(true);
     try {
+      console.log('Form data being submitted:', data); // Debug log
+      
       // Validate required values for entry methods
       const invalidEntryMethods = data.entry_methods.filter(
         method => method.required && !method.value
@@ -133,6 +135,22 @@ export const CreateGiveawayPage: React.FC = () => {
         setLoading(false);
         return;
       }
+      
+      // Validate prizes
+      const invalidPrizes = data.prizes.filter(prize => !prize.name);
+      if (invalidPrizes.length > 0) {
+        toast.error('Please provide a name for all prizes');
+        setLoading(false);
+        return;
+      }
+      
+      // Prepare prizes - ensure values are correctly typed
+      const formattedPrizes = data.prizes.map(prize => ({
+        name: prize.name,
+        description: prize.description || '',
+        value: Number(prize.value) || 0,
+        quantity: Number(prize.quantity) || 1
+      }));
       
       const slug = data.title ? generateSlug(data.title) : `giveaway-${Date.now()}`;
       
@@ -162,7 +180,7 @@ export const CreateGiveawayPage: React.FC = () => {
       data.entry_methods.forEach(method => {
         entry_config[method.type] = {
           enabled: true,
-          points: method.points || 1,
+          points: Number(method.points) || 1,
           value: method.value || '',
           required: !!method.required
         };
@@ -178,10 +196,13 @@ export const CreateGiveawayPage: React.FC = () => {
         end_time: data.end_time,
         announce_time: data.announce_time,
         status: 'active' as const,
-        entry_config
+        entry_config,
+        total_entries: 0,
+        unique_participants: 0
       };
 
-      await createGiveaway(giveawayData, data.prizes);
+      console.log('Sending to Supabase:', { giveawayData, formattedPrizes }); // Debug log
+      await createGiveaway(giveawayData, formattedPrizes);
       toast.success('Giveaway created successfully! ✨');
       navigate('/dashboard');
     } catch (error) {
@@ -471,7 +492,9 @@ export const CreateGiveawayPage: React.FC = () => {
                     <Input
                       label="Prize Name"
                       placeholder="e.g., iPhone 15 Pro"
-                      {...register(`prizes.${index}.name`)}
+                      {...register(`prizes.${index}.name`, { 
+                        required: 'Prize name is required'
+                      })}
                       error={errors.prizes?.[index]?.name?.message}
                       fullWidth
                       className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
