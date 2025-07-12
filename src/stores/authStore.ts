@@ -219,12 +219,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     }
 
-    return isLocalSubscribed;
-  } catch (error) {
-    console.error('Error in subscription check:', error);
-    return false;
-  }
-} catch (error) {
+      return isLocalSubscribed;
+    } catch (error) {
       console.error('Error in subscription check:', error);
       return false;
     }
