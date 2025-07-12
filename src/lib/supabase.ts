@@ -92,3 +92,15 @@ export interface Winner {
   prize?: Prize;
   participant?: Participant;
 }
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  status: 'active' | 'canceled' | 'expired' | 'trialing';
+  subscription_type: string;
+  price: number;
+  current_period_start: string;
+  current_period_end: string;
+  created_at: string;
+  updated_at: string;
+}
