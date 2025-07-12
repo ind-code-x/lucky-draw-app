@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '@supabase/supabase-js';
-import { supabase, Profile } from '../lib/supabase';
+import { supabase, Profile, Subscription } from '../lib/supabase';
 
 interface AuthState {
   user: User | null;
@@ -194,44 +194,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   
-  checkSubscription: async () => {
-    // Function to check if the user has an active subscription
-    const user = get().user;
-    if (!user) return false;
-    
-    try {
-      // For development/demo purposes, use localStorage as fallback
-      // This prevents the 404 error when the subscriptions table doesn't exist
-      const localStorageKey = `${user.id}_subscribed`;
-      const isLocalSubscribed = localStorage.getItem(localStorageKey) === 'true';
-      
-      // Try-catch to handle if subscriptions table doesn't exist yet
-      try {
-        // Query subscriptions table to check for active subscription
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle();
-        
-        if (error) {
-          console.warn('Error checking subscription (using localStorage fallback):', error);
-          return isLocalSubscribed; // Fallback to localStorage
-        }
-        
-        // If we found a subscription, update localStorage for backup
-        if (data) {
-          localStorage.setItem(localStorageKey, 'true');
-          return true;
-        }
-        
-        return isLocalSubscribed; // Use localStorage if no data from DB
-      } catch (dbError) {
-        console.warn('Database error (using localStorage fallback):', dbError);
-        return isLocalSubscribed;
-      }
-    } catch (error) {
+  checkSubscription: async (): Promise<boolean> => {
+  const user = get().user;
+  if (!user) return false;
+
+  try {
+    const localStorageKey = `${user.id}_subscribed`;
+    const isLocalSubscribed = localStorage.getItem(localStorageKey) === 'true';
+
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle<Subscription>();
+
+    if (error) {
+      console.warn('Error checking subscription:', error);
+      return isLocalSubscribed;
+    }
+
+    if (data) {
+      localStorage.setItem(localStorageKey, 'true');
+      return true;
+    }
+
+    return isLocalSubscribed;
+  } catch (error) {
+    console.error('Error in subscription check:', error);
+    return false;
+  }
+} catch (error) {
       console.error('Error in subscription check:', error);
       return false;
     }
