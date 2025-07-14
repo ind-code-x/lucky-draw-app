@@ -19,7 +19,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input, Textarea } from '../../components/ui/Input';
+import { Input, Textarea } from '../../components/ui/Input'; // Ensure this file has forwardRef implemented for both
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuthStore } from '../../stores/authStore';
 import { useGiveawayStore } from '../../stores/giveawayStore';
@@ -61,7 +61,15 @@ export const CreateGiveawayPage: React.FC = () => {
   const defaultEndTime = nextWeek.toISOString().slice(0, 16);
   const defaultAnnounceTime = nextWeekPlus1.toISOString().slice(0, 16);
 
-  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<GiveawayFormData>({
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    trigger, // Import trigger for explicit validation
+    formState: { errors }
+  } = useForm<GiveawayFormData>({
     defaultValues: {
       title: '',
       description: '',
@@ -87,18 +95,23 @@ export const CreateGiveawayPage: React.FC = () => {
   });
 
   // Watch the required checkboxes to dynamically update validation
-  const entryMethodsRequired = watch('entry_methods').map(method => method.required);
-
-  // Effect to update validation rules when required status changes
+  // This useEffect ensures that if 'required' changes, the 'value' field gets re-validated
   useEffect(() => {
-    entryMethodsRequired.forEach((isRequired, index) => {
+    entryMethodFields.forEach((field, index) => {
+      const isRequired = watch(`entry_methods.${index}.required`);
       if (isRequired) {
-        setValue(`entry_methods.${index}.value`, watch(`entry_methods.${index}.value`) || '', {
-          shouldValidate: true
-        });
+        // Trigger validation if the field becomes required and its value might be empty
+        trigger(`entry_methods.${index}.value`);
+      } else {
+        // If it becomes optional, clear any existing validation errors for the value field
+        // This is a bit more advanced but improves UX
+        if (errors.entry_methods?.[index]?.value) {
+            trigger(`entry_methods.${index}.value`);
+        }
       }
     });
-  }, [entryMethodsRequired, setValue, watch]);
+  }, [entryMethodFields, watch, trigger, errors.entry_methods]);
+
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -195,7 +208,7 @@ export const CreateGiveawayPage: React.FC = () => {
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
-        status: 'active' as const,
+        status: 'active' as const, // Ensure status is explicitly 'active'
         entry_config,
         total_entries: 0,
         unique_participants: 0
@@ -376,7 +389,7 @@ export const CreateGiveawayPage: React.FC = () => {
                         label="Points"
                         type="number"
                         min="1"
-                        defaultValue="1"
+                        // defaultValue="1" // Default value should be handled by useForm defaultValues
                         {...register(`entry_methods.${index}.points`, {
                           valueAsNumber: true,
                           min: { value: 1, message: 'Points must be at least 1' }
@@ -394,12 +407,14 @@ export const CreateGiveawayPage: React.FC = () => {
                         className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
                         onChange={(e) => {
-                          setValue(`entry_methods.${index}.required`, e.target.checked);
-                          // If it's now required, trigger validation on the value field
+                          // Do NOT setValue for the checkbox itself, register handles this.
+                          // Only perform side effects here.
                           if (e.target.checked) {
-                            setValue(`entry_methods.${index}.value`, watch(`entry_methods.${index}.value`) || '', {
-                              shouldValidate: true
-                            });
+                            // If it's now required, trigger validation on the value field
+                            trigger(`entry_methods.${index}.value`);
+                          } else {
+                            // If it's no longer required, trigger validation to clear the error if value is empty
+                            trigger(`entry_methods.${index}.value`);
                           }
                         }}
                       />
@@ -504,7 +519,7 @@ export const CreateGiveawayPage: React.FC = () => {
                       label="Value"
                       type="number"
                       step="0.01"
-                      defaultValue="0"
+                      // defaultValue="0" // Default value should be handled by useForm defaultValues
                       placeholder="0.00"
                       {...register(`prizes.${index}.value`, {
                         valueAsNumber: true,
@@ -519,7 +534,7 @@ export const CreateGiveawayPage: React.FC = () => {
                       label="Quantity"
                       type="number"
                       min="1"
-                      defaultValue="1"
+                      // defaultValue="1" // Default value should be handled by useForm defaultValues
                       placeholder="1"
                       {...register(`prizes.${index}.quantity`, {
                         valueAsNumber: true,
