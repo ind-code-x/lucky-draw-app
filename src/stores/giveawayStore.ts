@@ -134,6 +134,8 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
   },
 
   createGiveaway: async (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => {
+    console.log('--- createGiveaway function in store STARTED ---');
+    console.log('Attempting to insert giveaway:', giveaway);
     try {
       const { data, error } = await supabase
         .from('giveaways')
