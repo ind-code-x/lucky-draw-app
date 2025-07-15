@@ -32,7 +32,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .from('giveaways')
         .select(`
           *,
-          profiles!giveaways_organizer_id_fkey(*),
+          profiles(*),
           prizes(*)
         `)
         .order('created_at', { ascending: false });
@@ -87,7 +87,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .from('giveaways')
         .select(`
           *,
-          profiles!giveaways_organizer_id_fkey(*),
+          profiles(*),
           prizes(*)
         `)
         .eq('slug', slug)
