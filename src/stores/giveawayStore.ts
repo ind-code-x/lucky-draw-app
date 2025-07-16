@@ -34,7 +34,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       const { statusFilter } = get();
       let query = supabase
         .from('giveaways')
-        .select(`*, profiles(*), prizes(*)`) // Corrected: Using table name directly for relationship
+        .select(`*, profiles(*), prizes(*)`) 
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
@@ -45,9 +45,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
 
       if (error) {
         console.error('fetchGiveaways: Supabase error details (first attempt):', error);
-        // Fallback to basic query without joins if relationship fails
-        // This fallback logic is still here from previous iterations, though
-        // the primary issue was in the select syntax which is now fixed.
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
           .select('*')
@@ -58,7 +55,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           throw basicError;
         }
         
-        // Manually fetch organizer and prize data for fallback
         const giveawaysWithOrganizers = await Promise.all(
           (basicData || []).map(async (giveaway) => {
             const { data: organizer, error: organizerError } = await supabase
@@ -67,7 +63,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
               .eq('id', giveaway.organizer_id)
               .single();
 
-            if (organizerError && organizerError.code !== 'PGRST116') { // PGRST116 means no rows found (which is fine if no organizer)
+            if (organizerError && organizerError.code !== 'PGRST116') { 
                 console.warn(`fetchGiveaways: Error fetching organizer for ${giveaway.id}:`, organizerError);
             }
 
@@ -107,13 +103,12 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('giveaways')
-        .select(`*, profiles(*), prizes(*)`) // Corrected: Using table name directly for relationship
+        .select(`*, profiles(*), prizes(*)`) 
         .eq('slug', slug)
         .single();
 
       if (error) {
         console.error('fetchGiveaway: Supabase error details (first attempt):', error);
-        // Fallback logic
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
           .select('*')
@@ -125,7 +120,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           throw basicError;
         }
 
-        // Manually fetch related data
         const { data: organizer, error: organizerError } = await supabase
           .from('profiles')
           .select('*')
@@ -167,59 +161,57 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
   createGiveaway: async (giveaway, prizes) => {
     console.log('createGiveaway: function in store STARTED'); 
     console.log('createGiveaway: Attempting to insert giveaway (raw input from component):', giveaway);       
-    let insertedGiveawayId: string = ''; // Initialize to empty string or null, as per your return type
+
+    let insertedGiveawayId: string = ''; 
 
     try {
-      // --- CRITICAL FIX: Explicitly create a clean object for insertion ---
-      // This addresses the observed console log showing duplicate keys or hidden properties.
+      // --- CRITICAL FIX: Explicitly and safely build the object from primitive types ---
+      // This will ensure no hidden properties or duplicate keys from the input 'giveaway' object.
       const cleanedGiveawayData = {
-          organizer_id: giveaway.organizer_id,
-          title: giveaway.title,
-          slug: giveaway.slug,
-          description: giveaway.description,
-          rules: giveaway.rules || null, // Ensure optional fields are explicitly null if empty string
-          banner_url: giveaway.banner_url || null, // Ensure optional fields are explicitly null if empty string
-          start_time: giveaway.start_time,
-          end_time: giveaway.end_time,
-          announce_time: giveaway.announce_time,
-          status: giveaway.status || 'active', // Use the provided status, or 'active' as a fallback
-          entry_config: giveaway.entry_config || {}, // Ensure it's an empty object if undefined/null
-          total_entries: giveaway.total_entries || 0,
-          unique_participants: giveaway.unique_participants || 0,
-          // Do NOT include 'id', 'created_at', 'updated_at' as they are auto-generated
+          organizer_id: String(giveaway.organizer_id), // Ensure string type
+          title: String(giveaway.title),
+          slug: String(giveaway.slug),
+          description: String(giveaway.description),
+          rules: giveaway.rules ? String(giveaway.rules) : null, 
+          banner_url: giveaway.banner_url ? String(giveaway.banner_url) : null, // Ensure banner_url is handled
+          start_time: String(giveaway.start_time),
+          end_time: String(giveaway.end_time),
+          announce_time: String(giveaway.announce_time),
+          status: String(giveaway.status), 
+          entry_config: giveaway.entry_config || {}, // Ensure it's an object
+          total_entries: Number(giveaway.total_entries) || 0,
+          unique_participants: Number(giveaway.unique_participants) || 0,
       };
 
       console.log('createGiveaway: Attempting to insert giveaway (cleaned for Supabase):', cleanedGiveawayData); 
 
-      // Use .select().single() to get the inserted row's ID directly
       const { data, error: insertGiveawayError } = await supabase
         .from('giveaways')
         .insert(cleanedGiveawayData)
-        .select() // Select all columns of the inserted row
-        .single(); // Expecting exactly one row back
+        .select()
+        .single();
 
       if (insertGiveawayError) {
         console.error('createGiveaway: Supabase insert giveaway error:', insertGiveawayError);
         throw insertGiveawayError;
       }
       
-      insertedGiveawayId = data.id; // Capture the ID from the single returned object
+      insertedGiveawayId = data.id; 
       console.log('createGiveaway: Giveaway inserted successfully with ID:', insertedGiveawayId);
 
       // Create prizes
       if (prizes.length > 0) {
-        // Also clean prize data before mapping/inserting
         const cleanedPrizes = prizes.map(p => ({
-            name: p.name,
-            value: p.value || 0,
-            quantity: p.quantity || 1,
-            description: p.description || null, // Ensure optional fields are explicitly null if empty string
+            name: String(p.name),
+            value: Number(p.value) || 0,
+            quantity: Number(p.quantity) || 1,
+            description: p.description ? String(p.description) : null,
         }));
         console.log('createGiveaway: Attempting to insert prizes (cleaned):', cleanedPrizes);
 
         const prizesWithGiveawayId = cleanedPrizes.map(prize => ({
           ...prize,
-          giveaway_id: insertedGiveawayId, // Use the captured ID here
+          giveaway_id: insertedGiveawayId,
         }));
 
         const { error: prizesError } = await supabase
@@ -233,11 +225,10 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         console.log('createGiveaway: Prizes inserted successfully.');
       }
 
-      // After successful creation, refetch all giveaways to update the store state
       await get().fetchGiveaways(); 
       
       console.log('createGiveaway: function in store FINISHED, returning ID:', insertedGiveawayId);
-      return insertedGiveawayId; // Return the ID
+      return insertedGiveawayId;
     } catch (error) {
       console.error('createGiveaway: Error in createGiveaway catch block:', error);
       throw error;
