@@ -1,3 +1,5 @@
+// CreateGiveawayPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -95,16 +97,12 @@ export const CreateGiveawayPage: React.FC = () => {
   });
 
   // Watch the required checkboxes to dynamically update validation
-  // This useEffect ensures that if 'required' changes, the 'value' field gets re-validated
   useEffect(() => {
     entryMethodFields.forEach((field, index) => {
       const isRequired = watch(`entry_methods.${index}.required`);
       if (isRequired) {
-        // Trigger validation if the field becomes required and its value might be empty
         trigger(`entry_methods.${index}.value`);
       } else {
-        // If it becomes optional, clear any existing validation errors for the value field
-        // This is a bit more advanced but improves UX
         if (errors.entry_methods?.[index]?.value) {
             trigger(`entry_methods.${index}.value`);
         }
@@ -218,8 +216,6 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
 
       // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
-      // If the debugger doesn't hit the `debugger;` line above, this line is never reached.
-      // If it hits the debugger but doesn't progress past here, the 'await' is hanging.
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
