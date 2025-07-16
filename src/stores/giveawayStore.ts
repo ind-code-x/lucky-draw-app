@@ -1,7 +1,6 @@
 // giveawayStore.ts
 
 import { create } from 'zustand';
-// Ensure these imports are correct based on your actual lib/supabase.ts content
 import { supabase, Giveaway, Prize, Profile, Participant, Winner } from '../lib/supabase'; 
 
 interface GiveawayState {
@@ -12,7 +11,7 @@ interface GiveawayState {
   statusFilter: string;
   fetchGiveaways: () => Promise<void>;
   fetchGiveaway: (slug: string) => Promise<void>;
-  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>; // Keeping original return type
+  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>; 
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: string) => void;
   addParticipant: (giveawayId: string, userId: string) => Promise<void>;
@@ -168,26 +167,28 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       // --- CRITICAL FIX: Explicitly and safely build the object from primitive types ---
       // This will ensure no hidden properties or duplicate keys from the input 'giveaway' object.
       const cleanedGiveawayData = {
-          organizer_id: String(giveaway.organizer_id), // Ensure string type
+          organizer_id: String(giveaway.organizer_id), 
           title: String(giveaway.title),
           slug: String(giveaway.slug),
           description: String(giveaway.description),
           rules: giveaway.rules ? String(giveaway.rules) : null, 
-          banner_url: giveaway.banner_url ? String(giveaway.banner_url) : null, // Ensure banner_url is handled
+          banner_url: giveaway.banner_url ? String(giveaway.banner_url) : null,
           start_time: String(giveaway.start_time),
           end_time: String(giveaway.end_time),
           announce_time: String(giveaway.announce_time),
           status: String(giveaway.status), 
-          entry_config: giveaway.entry_config || {}, // Ensure it's an object
+          entry_config: giveaway.entry_config || {}, 
           total_entries: Number(giveaway.total_entries) || 0,
           unique_participants: Number(giveaway.unique_participants) || 0,
       };
 
-      console.log('createGiveaway: Attempting to insert giveaway (cleaned for Supabase):', cleanedGiveawayData); 
+      // --- NEW DIAGNOSTIC STEP: Stringify the object to confirm its internal structure ---
+      console.log('createGiveaway: Stringified cleaned data:', JSON.stringify(cleanedGiveawayData, null, 2));
+      // This will throw a JSON.stringify error if there are actual circular references or non-plain object issues.
 
       const { data, error: insertGiveawayError } = await supabase
         .from('giveaways')
-        .insert(cleanedGiveawayData)
+        .insert(cleanedGiveawayData) // Pass the explicitly constructed object
         .select()
         .single();
 
