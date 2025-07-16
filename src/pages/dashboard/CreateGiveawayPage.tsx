@@ -1,7 +1,7 @@
 // CreateGiveawayPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom'; // Added Link for buttons
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   Gift,
@@ -110,9 +110,8 @@ export const CreateGiveawayPage: React.FC = () => {
     });
   }, [entryMethodFields, watch, trigger, errors.entry_methods]);
 
-  // THIS IS THE CRITICAL LOG: What does React Hook Form think are the errors?
-  // Check your browser's CONSOLE tab after filling the form, before clicking submit.
-  console.log('--- RHF Errors on Render (before submit):', errors); 
+  // Removed RHF Errors console.log here as it's not the primary issue preventing submission
+  // console.log('--- RHF Errors on Render (before submit):', errors); 
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -213,12 +212,11 @@ export const CreateGiveawayPage: React.FC = () => {
         unique_participants: 0
       };
 
-      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
-
-      // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
-      console.log('Final data to be sent to createGiveaway:');
+      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); 
+      console.log('Final data to be sent to createGiveaway:'); // Moved this log here for direct data inspection
       console.log('giveawayData:', giveawayData);
       console.log('formattedPrizes:', formattedPrizes);
+
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
@@ -263,6 +261,88 @@ export const CreateGiveawayPage: React.FC = () => {
       return true;
     };
   };
+
+  // --- START TEMPORARY DIRECT FETCH TEST CODE ---
+  // IMPORTANT: Replace with your ACTUAL Supabase URL and Anon Key from your Render deployment
+  const TEST_SUPABASE_URL = "https://jmlqqwyfdvuuhydryqdx.supabase.co"; 
+  const TEST_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptbHFxd3lmZHZ1dWh5ZHJ5cWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwNTQ5MjksImV4cCI6MjA2NTYzMDkyOX0.SXgMEnLDZ55-9q-NXOoTsMqWcdtVsQxQFEZHaHwns5I"; 
+  
+  const sendDirectPostRequest = async () => {
+      console.log("--- Direct POST Test: STARTED ---");
+      try {
+          // Attempt to get the user's JWT from local storage (if logged in)
+          // Replace 'jmlqqwyfdvuuhydryqdx' with your actual project reference from your Supabase URL
+          const authSessionString = localStorage.getItem('sb-jmlqqwyfdvuuhydryqdx-auth-token'); 
+          let userJWT = '';
+          if (authSessionString) {
+              try {
+                  const sessionData = JSON.parse(authSessionString);
+                  if (sessionData && sessionData.currentSession && sessionData.currentSession.access_token) {
+                      userJWT = sessionData.currentSession.access_token;
+                  }
+              } catch (e) {
+                  console.error("Error parsing auth session from localStorage:", e);
+              }
+          }
+
+          // Construct minimal test data for a giveaway
+          const directTestData = {
+            organizer_id: user?.id, // Use the authenticated user's ID from useAuthStore
+            title: `Direct Test ${Date.now()} on Render`,
+            slug: `direct-test-${Date.now()}-on-render`,
+            description: 'A raw fetch API test giveaway from the deployed site.',
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            announce_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'active',
+            entry_config: {},
+            total_entries: 0,
+            unique_participants: 0
+          };
+
+          const headers: HeadersInit = {
+              'Content-Type': 'application/json',
+              'apikey': TEST_SUPABASE_ANON_KEY,
+          };
+
+          if (userJWT) {
+              headers['Authorization'] = `Bearer ${userJWT}`;
+              console.log("Direct POST Test: Using authenticated JWT for Authorization.");
+          } else {
+              console.warn("Direct POST Test: No user JWT found. Request will use anon key only. Check RLS policies if it fails with 401/403.");
+          }
+
+          console.log("Direct POST Test: Request URL:", `${TEST_SUPABASE_URL}/rest/v1/giveaways`);
+          console.log("Direct POST Test: Request Headers:", headers);
+          console.log("Direct POST Test: Request Body:", directTestData);
+
+          const response = await fetch(`${TEST_SUPABASE_URL}/rest/v1/giveaways`, {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(directTestData),
+              mode: 'cors'
+          });
+
+          const result = await response.json();
+          console.log("Direct POST Test: Raw response object:", response); 
+          console.log("Direct POST Test: Parsed JSON result:", result);
+
+          if (!response.ok) {
+              console.error("Direct POST Test: FAILED:", response.status, response.statusText, result);
+              toast.error(`Direct POST failed: ${result.message || response.statusText || 'Unknown error'}`);
+          } else {
+              console.log("Direct POST Test: SUCCEEDED!", result);
+              toast.success("Direct POST test succeeded! Check your Supabase table!");
+          }
+      } catch (error) {
+          console.error("Direct POST Test: Caught JavaScript error:", error);
+          toast.error(`Direct POST failed with network error: ${error.message || String(error)}`);
+      } finally {
+          console.log("--- Direct POST Test: FINISHED ---");
+      }
+  };
+  // --- END TEMPORARY DIRECT FETCH TEST CODE ---
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
@@ -413,7 +493,6 @@ export const CreateGiveawayPage: React.FC = () => {
                         className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
                         onChange={(e) => {
-                          // Only perform side effects here.
                           if (e.target.checked) {
                             trigger(`entry_methods.${index}.value`);
                           } else {
