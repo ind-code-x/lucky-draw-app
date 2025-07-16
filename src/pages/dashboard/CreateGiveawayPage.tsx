@@ -216,6 +216,9 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
 
       // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
+      console.log('Final data to be sent to createGiveaway:');
+      console.log('giveawayData:', giveawayData);
+      console.log('formattedPrizes:', formattedPrizes);
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
