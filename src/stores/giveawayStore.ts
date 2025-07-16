@@ -1,7 +1,5 @@
-// giveawayStore.ts
-
 import { create } from 'zustand';
-import { supabase, Giveaway, Prize } from '../lib/supabase'; // Assuming 'supabase' is your initialized Supabase client
+import { supabase, Giveaway, Prize } from '../lib/supabase';
 
 interface GiveawayState {
   giveaways: Giveaway[];
@@ -11,7 +9,7 @@ interface GiveawayState {
   statusFilter: string;
   fetchGiveaways: () => Promise<void>;
   fetchGiveaway: (slug: string) => Promise<void>;
-  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string | null>; // Changed return type to allow null
+  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>;
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: string) => void;
   addParticipant: (giveawayId: string, userId: string) => Promise<void>;
@@ -28,51 +26,40 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
 
   fetchGiveaways: async () => {
     set({ loading: true });
-    console.log('fetchGiveaways: Initiating fetch...'); // Debug log
     try {
+      // Use a simpler query first to test the relationship
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
           *,
-          profiles(*), // Corrected: Using table name directly for relationship
+          profiles(*),
           prizes(*)
         `)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('fetchGiveaways: Supabase error details (first attempt):', error);
+        console.error('Supabase error details:', error);
         // Fallback to basic query without joins if relationship fails
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (basicError) {
-          console.error('fetchGiveaways: Supabase error details (fallback):', basicError);
-          throw basicError;
-        }
+        if (basicError) throw basicError;
         
         // Manually fetch organizer data for each giveaway
         const giveawaysWithOrganizers = await Promise.all(
           (basicData || []).map(async (giveaway) => {
-            const { data: organizer, error: organizerError } = await supabase
+            const { data: organizer } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', giveaway.organizer_id)
               .single();
 
-            if (organizerError && organizerError.code !== 'PGRST116') { 
-                console.warn(`fetchGiveaways: Error fetching organizer for ${giveaway.id}:`, organizerError);
-            }
-
-            const { data: prizes, error: prizesFetchError } = await supabase
+            const { data: prizes } = await supabase
               .from('prizes')
               .select('*')
               .eq('giveaway_id', giveaway.id);
-
-            if (prizesFetchError) {
-                console.warn(`fetchGiveaways: Error fetching prizes for ${giveaway.id}:`, prizesFetchError);
-            }
 
             return {
               ...giveaway,
@@ -83,34 +70,31 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         );
 
         set({ giveaways: giveawaysWithOrganizers, loading: false });
-        console.log('fetchGiveaways: Fallback data loaded.'); // Debug log
         return;
       }
 
       set({ giveaways: data || [], loading: false });
-      console.log('fetchGiveaways: Data loaded successfully (with joins).', data); // Debug log
     } catch (error) {
-      console.error('fetchGiveaways: Error in catch block:', error);
+      console.error('Error fetching giveaways:', error);
       set({ giveaways: [], loading: false });
     }
   },
 
   fetchGiveaway: async (slug: string) => {
     set({ loading: true });
-    console.log(`fetchGiveaway: Initiating fetch for slug: ${slug}`); // Debug log
     try {
       const { data, error } = await supabase
         .from('giveaways')
         .select(`
           *,
-          profiles(*), // Corrected: Using table name directly for relationship
+          profiles(*),
           prizes(*)
         `)
         .eq('slug', slug)
         .single();
 
       if (error) {
-        console.error('fetchGiveaway: Supabase error details (first attempt):', error);
+        console.error('Supabase error details:', error);
         // Fallback to basic query without joins
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
@@ -118,32 +102,19 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           .eq('slug', slug)
           .single();
 
-        if (basicError) {
-          console.error('fetchGiveaway: Supabase error details (fallback):', basicError);
-          throw basicError;
-        }
+        if (basicError) throw basicError;
 
         // Manually fetch related data
-        const { data: organizer, error: organizerError } = await supabase
+        const { data: organizer } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', basicData.organizer_id)
           .single();
-        
-        if (organizerError && organizerError.code !== 'PGRST116') {
-            console.warn(`fetchGiveaway: Error fetching organizer for ${basicData.id}:`, organizerError);
-        }
 
-
-        const { data: prizes, error: prizesFetchError } = await supabase
+        const { data: prizes } = await supabase
           .from('prizes')
           .select('*')
           .eq('giveaway_id', basicData.id);
-        
-        if (prizesFetchError) {
-            console.warn(`fetchGiveaway: Error fetching prizes for ${basicData.id}:`, prizesFetchError);
-        }
-
 
         const giveawayWithRelations = {
           ...basicData,
@@ -152,68 +123,48 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         };
 
         set({ currentGiveaway: giveawayWithRelations, loading: false });
-        console.log('fetchGiveaway: Fallback data loaded.', giveawayWithRelations); // Debug log
         return;
       }
 
       set({ currentGiveaway: data, loading: false });
-      console.log('fetchGiveaway: Data loaded successfully (with joins).', data); // Debug log
     } catch (error) {
-      console.error('fetchGiveaway: Error in catch block:', error);
+      console.error('Error fetching giveaway:', error);
       set({ currentGiveaway: null, loading: false });
     }
   },
 
   createGiveaway: async (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => {
-    console.log('createGiveaway: function in store STARTED'); 
-    console.log('createGiveaway: Attempting to insert giveaway:', giveaway);       
-    let insertedGiveawayId: string | null = null; // Variable to hold the inserted ID
-
+    console.log('--- createGiveaway function in store STARTED ---');
+    console.log('Attempting to insert giveaway:', giveaway);
     try {
-      // MODIFIED SYNTAX: Use { data, error } and then retrieve data if no error
-      // Removed .single() here to rule out issues with that, still return 'id'
       const { data, error: insertGiveawayError } = await supabase
         .from('giveaways')
         .insert(giveaway)
         .select()
-        .single(); // Select only the ID, expecting an array of results now
+        .single();
 
       if (insertGiveawayError) {
         console.error('createGiveaway: Supabase insert giveaway error:', insertGiveawayError);
         throw insertGiveawayError;
       }
-      
-      // Since .single() was removed, data will be an array. Ensure it's not empty.
-      if (!data || data.length === 0 || !data[0].id) {
-          throw new Error('createGiveaway: Inserted giveaway data is missing or invalid ID.');
-      }
-
-      insertedGiveawayId = data[0].id; // Capture the ID from the first (and only) inserted row
-      console.log('createGiveaway: Giveaway inserted successfully with ID:', insertedGiveawayId);
 
       // Create prizes
       if (prizes.length > 0) {
-        console.log('createGiveaway: Attempting to insert prizes:', prizes);
         const prizesWithGiveawayId = prizes.map(prize => ({
           ...prize,
-          giveaway_id: insertedGiveawayId, // Use the captured ID here
+          giveaway_id: data.id,
         }));
 
         const { error: prizesError } = await supabase
           .from('prizes')
           .insert(prizesWithGiveawayId);
 
-        if (prizesError) {
-          console.error('createGiveaway: Supabase insert prizes error:', prizesError);
-          throw prizesError;
-        }
-        console.log('createGiveaway: Prizes inserted successfully.');
+        if (prizesError) throw prizesError;
       }
 
-      console.log('createGiveaway: function in store FINISHED');
-      return insertedGiveawayId; // Return the ID
+      return data.id;
     } catch (error) {
-      console.error('createGiveaway: Error in createGiveaway catch block:', error);
+      console.error('Error creating giveaway:', error);
       throw error;
     }
   },
@@ -222,7 +173,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
   setStatusFilter: (status: string) => set({ statusFilter: status }),
 
   addParticipant: async (giveawayId: string, userId: string) => {
-    console.log(`addParticipant: Adding participant ${userId} to giveaway ${giveawayId}`); // Debug log
     try {
       // Generate a unique referral code
       const referralCode = `${userId.substring(0, 5)}-${Math.random().toString(36).substring(2, 7)}`;
@@ -235,14 +185,10 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .eq('user_id', userId)
         .maybeSingle();
       
-      if (checkError) {
-        console.error('addParticipant: Error checking existing participant:', checkError); // Debug log
-        throw checkError;
-      }
+      if (checkError) throw checkError;
       
       // If participant already exists, don't add again
       if (existingParticipant) {
-        console.log('addParticipant: Participant already exists, not adding again.');
         return;
       }
       
@@ -256,24 +202,15 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           total_entries: 1, // Start with one entry
         });
         
-      if (error) {
-        console.error('addParticipant: Error inserting new participant:', error); // Debug log
-        throw error;
-      }
-      console.log('addParticipant: Participant added successfully.');
+      if (error) throw error;
       
       // Update the giveaway's total entries and unique participants
-      const { data: giveaway, error: giveawayUpdateError } = await supabase
+      const { data: giveaway } = await supabase
         .from('giveaways')
         .select('total_entries, unique_participants')
         .eq('id', giveawayId)
         .single();
         
-      if (giveawayUpdateError) {
-        console.error('addParticipant: Error fetching giveaway for update:', giveawayUpdateError); // Debug log
-        // This is a non-critical error, so we log but don't re-throw to avoid blocking
-      }
-      
       if (giveaway) {
         await supabase
           .from('giveaways')
@@ -282,16 +219,14 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
             unique_participants: (giveaway.unique_participants || 0) + 1
           })
           .eq('id', giveawayId);
-        console.log('addParticipant: Giveaway entries updated successfully.'); // Debug log
       }
     } catch (error) {
-      console.error('addParticipant: Error in addParticipant catch block:', error);
+      console.error('Error adding participant:', error);
       throw error;
     }
   },
 
   fetchParticipants: async (giveawayId: string) => {
-    console.log(`fetchParticipants: Fetching participants for giveaway ${giveawayId}`); // Debug log
     try {
       const { data, error } = await supabase
         .from('participants')
@@ -301,20 +236,15 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         `)
         .eq('giveaway_id', giveawayId);
         
-      if (error) {
-        console.error('fetchParticipants: Supabase error details:', error); // Debug log
-        throw error;
-      }
-      console.log('fetchParticipants: Data loaded.', data); // Debug log
+      if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('fetchParticipants: Error in catch block:', error);
+      console.error('Error fetching participants:', error);
       return [];
     }
   },
   
   selectRandomWinner: async (giveawayId: string, prizeId: string) => {
-    console.log(`selectRandomWinner: Selecting winner for giveaway ${giveawayId}, prize ${prizeId}`); // Debug log
     try {
       // Get all participants for this giveaway
       const { data: participants, error } = await supabase
@@ -322,19 +252,14 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .select('*')
         .eq('giveaway_id', giveawayId);
         
-      if (error) {
-        console.error('selectRandomWinner: Error fetching participants:', error); // Debug log
-        throw error;
-      }
+      if (error) throw error;
       if (!participants || participants.length === 0) {
-        throw new Error('selectRandomWinner: No participants found for this giveaway');
+        throw new Error('No participants found for this giveaway');
       }
-      console.log('selectRandomWinner: Participants found:', participants.length); // Debug log
       
       // Select a random participant
       const randomIndex = Math.floor(Math.random() * participants.length);
       const winner = participants[randomIndex];
-      console.log('selectRandomWinner: Randomly selected winner:', winner.id); // Debug log
       
       // Record the winner in the winners table
       const { data: winnerRecord, error: winnerError } = await supabase
@@ -349,15 +274,11 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .select()
         .single();
         
-      if (winnerError) {
-        console.error('selectRandomWinner: Error inserting winner record:', winnerError); // Debug log
-        throw winnerError;
-      }
-      console.log('selectRandomWinner: Winner record inserted successfully.', winnerRecord); // Debug log
+      if (winnerError) throw winnerError;
       
       return { winner, winnerRecord };
     } catch (error) {
-      console.error('selectRandomWinner: Error in selectRandomWinner catch block:', error);
+      console.error('Error selecting winner:', error);
       throw error;
     }
   }
