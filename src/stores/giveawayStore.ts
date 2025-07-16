@@ -175,7 +175,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       const { data, error: insertGiveawayError } = await supabase
         .from('giveaways')
         .insert(giveaway)
-        .select('id', giveaway.organizer_id)
+        .select()
         .single(); // Select only the ID, expecting an array of results now
 
       if (insertGiveawayError) {
