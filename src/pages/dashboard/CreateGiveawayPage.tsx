@@ -215,52 +215,7 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log('Final data to be sent to createGiveaway:'); 
       console.log('giveawayData:', giveawayData);
       console.log('formattedPrizes:', formattedPrizes);
-
-      await createGiveaway(giveawayData, formattedPrizes); 
-
-      toast.success('Giveaway created successfully! ✨');
-      navigate('/dashboard');
-
-    } catch (error) {
-      console.error('Create giveaway error (from onSubmit catch):', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create giveaway');
-    } finally {
-      setLoading(false);
-      console.log('*** onSubmit function FINISHED (finally block) ***');
-    }
-  };
-
-  const addPrize = () => {
-    appendPrize({ name: '', value: 0, quantity: 1, description: '' });
-  };
-
-  const removePrizeField = (index: number) => {
-    if (prizeFields.length > 1) {
-      removePrize(index);
-    }
-  };
-  
-  const addEntryMethod = () => {
-    appendEntryMethod({ type: 'website_visit', value: '', points: 1, required: false });
-  };
-  
-  const removeEntryMethodField = (index: number) => {
-    if (entryMethodFields.length > 1) {
-      removeEntryMethod(index);
-    }
-  };
-
-  // Custom validation function for required entry methods
-  const validateEntryMethodValue = (index: number) => {
-    return (value: string) => {
-      const isRequired = watch(`entry_methods.${index}.required`);
-      if (isRequired && !value) {
-        return 'Value is required for required methods';
-      }
-      return true;
-    };
-  };
-
+      
   // --- START TEMPORARY DIRECT FETCH TEST CODE ---
   // IMPORTANT: Replace with your ACTUAL Supabase URL and Anon Key from your Render deployment
   // Get these from your Supabase Project Settings -> API Keys
@@ -342,6 +297,50 @@ export const CreateGiveawayPage: React.FC = () => {
       }
   };
   // --- END TEMPORARY DIRECT FETCH TEST CODE ---
+      await createGiveaway(giveawayData, formattedPrizes); 
+
+      toast.success('Giveaway created successfully! ✨');
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error('Create giveaway error (from onSubmit catch):', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create giveaway');
+    } finally {
+      setLoading(false);
+      console.log('*** onSubmit function FINISHED (finally block) ***');
+    }
+  };
+
+  const addPrize = () => {
+    appendPrize({ name: '', value: 0, quantity: 1, description: '' });
+  };
+
+  const removePrizeField = (index: number) => {
+    if (prizeFields.length > 1) {
+      removePrize(index);
+    }
+  };
+  
+  const addEntryMethod = () => {
+    appendEntryMethod({ type: 'website_visit', value: '', points: 1, required: false });
+  };
+  
+  const removeEntryMethodField = (index: number) => {
+    if (entryMethodFields.length > 1) {
+      removeEntryMethod(index);
+    }
+  };
+
+  // Custom validation function for required entry methods
+  const validateEntryMethodValue = (index: number) => {
+    return (value: string) => {
+      const isRequired = watch(`entry_methods.${index}.required`);
+      if (isRequired && !value) {
+        return 'Value is required for required methods';
+      }
+      return true;
+    };
+  };
 
 
   return (
