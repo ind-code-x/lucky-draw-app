@@ -17,8 +17,8 @@ import toast from 'react-hot-toast';
 
 export const ContactPage: React.FC = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: 'AdiAru Softsolutions Pvt Ltd',
+    email: 'ind.codex.softsolutions@gmail.com',
     subject: '',
     message: '',
     category: 'general'
@@ -57,8 +57,8 @@ export const ContactPage: React.FC = () => {
       icon: Mail,
       title: 'Email Support',
       description: 'Get help via email within 24 hours',
-      contact: 'support@giveawayhub.com',
-      action: 'mailto:support@giveawayhub.com',
+      contact: 'ind.codex.softsolutions@gmail.com',
+      action: 'mailto:ind.codex.softsolutions@gmail.com',
       color: 'from-pink-500 to-rose-500'
     },
     {
@@ -73,8 +73,8 @@ export const ContactPage: React.FC = () => {
       icon: Phone,
       title: 'Phone Support',
       description: 'Call us for urgent matters',
-      contact: '+91 98765 43210',
-      action: 'tel:+919876543210',
+      contact: '+91 8380097432',
+      action: 'tel:+918380097432',
       color: 'from-rose-500 to-maroon-500'
     }
   ];
