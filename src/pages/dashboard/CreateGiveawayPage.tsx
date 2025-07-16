@@ -1,7 +1,7 @@
 // CreateGiveawayPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom'; // Added Link for buttons
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   Gift,
@@ -110,8 +110,7 @@ export const CreateGiveawayPage: React.FC = () => {
     });
   }, [entryMethodFields, watch, trigger, errors.entry_methods]);
 
-  // Removed RHF Errors console.log here as it's not the primary issue preventing submission
-  // console.log('--- RHF Errors on Render (before submit):', errors); 
+  // RHF Errors on Render console.log is moved to bottom of the file for testing purposes
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -213,7 +212,7 @@ export const CreateGiveawayPage: React.FC = () => {
       };
 
       console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); 
-      console.log('Final data to be sent to createGiveaway:'); // Moved this log here for direct data inspection
+      console.log('Final data to be sent to createGiveaway:'); 
       console.log('giveawayData:', giveawayData);
       console.log('formattedPrizes:', formattedPrizes);
 
@@ -264,6 +263,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
   // --- START TEMPORARY DIRECT FETCH TEST CODE ---
   // IMPORTANT: Replace with your ACTUAL Supabase URL and Anon Key from your Render deployment
+  // Get these from your Supabase Project Settings -> API Keys
   const TEST_SUPABASE_URL = "https://jmlqqwyfdvuuhydryqdx.supabase.co"; 
   const TEST_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptbHFxd3lmZHZ1dWh5ZHJ5cWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwNTQ5MjksImV4cCI6MjA2NTYzMDkyOX0.SXgMEnLDZ55-9q-NXOoTsMqWcdtVsQxQFEZHaHwns5I"; 
   
@@ -271,7 +271,7 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log("--- Direct POST Test: STARTED ---");
       try {
           // Attempt to get the user's JWT from local storage (if logged in)
-          // Replace 'jmlqqwyfdvuuhydryqdx' with your actual project reference from your Supabase URL
+          // Replace 'jmlqqwyfdvuuhydryqdx' with YOUR actual project ref from your Supabase URL
           const authSessionString = localStorage.getItem('sb-jmlqqwyfdvuuhydryqdx-auth-token'); 
           let userJWT = '';
           if (authSessionString) {
@@ -287,7 +287,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
           // Construct minimal test data for a giveaway
           const directTestData = {
-            organizer_id: user?.id, // Use the authenticated user's ID from useAuthStore
+            organizer_id: user?.id, // Use the authenticated user's ID
             title: `Direct Test ${Date.now()} on Render`,
             slug: `direct-test-${Date.now()}-on-render`,
             description: 'A raw fetch API test giveaway from the deployed site.',
