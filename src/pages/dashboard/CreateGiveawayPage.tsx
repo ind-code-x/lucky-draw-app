@@ -219,6 +219,7 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log('Final data to be sent to createGiveaway:');
       console.log('giveawayData:', giveawayData);
       console.log('formattedPrizes:', formattedPrizes);
+      console.log('createGiveaway: Stringified cleaned data:', JSON.stringify(giveawayData, null, 2));
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
