@@ -1,3 +1,5 @@
+// DashboardPage.tsx
+
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { 
@@ -24,89 +26,133 @@ import { useGiveawayStore } from '../../stores/giveawayStore';
 import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
-  const { user, profile } = useAuthStore();
-  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner } = useGiveawayStore();
+  const { user, profile, isSubscribed } = useAuthStore(); // Added isSubscribed
+  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore(); 
+  
   const [selectedGiveaway, setSelectedGiveaway] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [winners, setWinners] = useState([]);
-  const [showParticipants, setShowParticipants] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]); // Explicitly type participants
+  const [loadingParticipants, setLoadingParticipants] = useState(false); 
+  const [loadingWinnerDraw, setLoadingWinnerDraw] = useState(false); 
+  const [winners, setWinners] = useState<any[]>([]); // Explicitly type winners
+  const [showParticipantsSection, setShowParticipantsSection] = useState(false); 
 
+  // Fetch giveaways on user change or filter change
   useEffect(() => {
     if (user) {
       fetchGiveaways();
     }
-  }, [user, fetchGiveaways]);
+  }, [user, fetchGiveaways, statusFilter]); 
 
-  const loadParticipants = async (giveawayId) => {
-    if (giveawayId) {
-      setLoading(true);
-      try {
-        const participantData = await fetchParticipants(giveawayId);
-        setParticipants(participantData);
-      } catch (error) {
-        console.error('Error fetching participants:', error);
-        toast.error('Failed to load participants');
-      } finally {
-        setLoading(false);
-      }
+  // Function to load participants for a selected giveaway
+  const loadParticipants = async (giveawayId: string) => {
+    if (!giveawayId) return; // Guard clause
+    
+    setLoadingParticipants(true);
+    try {
+      const participantData = await fetchParticipants(giveawayId);
+      setParticipants(participantData);
+      setWinners([]); // Clear previous winners when new giveaway is selected
+    } catch (error) {
+      console.error('loadParticipants: Error fetching participants:', error);
+      toast.error('Failed to load participants');
+    } finally {
+      setLoadingParticipants(false);
     }
   };
 
-  const handleSelectGiveaway = (giveaway) => {
+  // Handler for when an organizer selects a giveaway from the list
+  const handleSelectGiveaway = (giveaway: any) => {
     setSelectedGiveaway(giveaway);
     loadParticipants(giveaway.id);
-    setWinners([]);
-    setShowParticipants(true);
+    setShowParticipantsSection(true); 
   };
 
-  const handleSelectWinner = async (giveawayId) => {
+  // Handler for when an organizer draws a winner
+  const handleDrawWinner = async (giveawayId: string) => { // Renamed from handleSelectWinner for clarity
     if (!selectedGiveaway || !selectedGiveaway.prizes || selectedGiveaway.prizes.length === 0) {
-      toast.error('No prizes available for this giveaway');
+      toast.error('No prizes available for this giveaway.');
       return;
     }
     
     if (participants.length === 0) {
-      toast.error('No participants available to select a winner');
+      toast.error('No participants available to select a winner.');
       return;
     }
 
-    setLoading(true);
+    setLoadingWinnerDraw(true); 
     try {
-      // For simplicity, we'll use the first prize
+      // For simplicity, drawing for the first prize. Adjust if you have multiple prizes
       const prizeId = selectedGiveaway.prizes[0].id;
       const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeId);
       
-      // Find the winner's details from participants
-      const winnerWithDetails = participants.find(p => p.id === winner.id);
+      // Find the winner's details from participants (winner.participant_id is the user ID)
+      const winnerWithDetails = participants.find((p: any) => p.user_id === winner.participant_id); 
       
-      // Add to winners list
       if (winnerWithDetails) {
         const newWinner = {
           ...winnerWithDetails,
-          prize: selectedGiveaway.prizes[0],
-          winnerRecord
+          prize: selectedGiveaway.prizes[0], // Attach the prize object
+          winnerRecord // The newly created winner record from DB
         };
         setWinners(prev => [...prev, newWinner]);
-        toast.success('Winner selected successfully!');
+        toast.success('Winner selected successfully! 🎉');
+      } else {
+        toast.error('Selected winner details could not be found.');
       }
     } catch (error) {
-      console.error('Error selecting winner:', error);
-      toast.error(error.message || 'Failed to select winner');
+      console.error('handleDrawWinner: Error selecting winner:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to select winner');
     } finally {
-      setLoading(false);
+      setLoadingWinnerDraw(false); 
     }
   };
 
+  // New function to handle participant entry into a giveaway
+  const { addParticipant } = useGiveawayStore(); // Import addParticipant
+
+  const handleEnterGiveaway = async (giveaway: any) => {
+      // Check if user is logged in
+      if (!user) {
+          toast.error("Please sign in to participate in giveaways.");
+          navigate('/auth/login'); 
+          return;
+      }
+
+      // Check if the user is subscribed (based on your authStore logic)
+      if (!isSubscribed) { // This relies on isSubscribed state from useAuthStore
+          toast.error("You must have an active subscription to enter this giveaway.");
+          // You might navigate to a subscription page here
+          // navigate('/subscription'); 
+          return;
+      }
+
+      setLoadingParticipants(true); // Reusing loadingParticipants, or create a specific button loading state
+      try {
+          await addParticipant(giveaway.id, user.id);
+          toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
+          // Optionally refetch giveaways to update the entry count on the card
+          await fetchGiveaways(); 
+      } catch (error) {
+          console.error('handleEnterGiveaway: Error adding participant:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway. You might have already entered.');
+      } finally {
+          setLoadingParticipants(false);
+      }
+  };
+
+
+  // Redirect unauthenticated users
   if (!user) {
     return <Navigate to="/auth/login" replace />;
   }
 
+  // Filter giveaways for the current organizer
   const userGiveaways = giveaways.filter(g => g.organizer_id === user.id);
   const activeGiveaways = userGiveaways.filter(g => g.status === 'active');
   const totalEntries = userGiveaways.reduce((sum, g) => sum + (g.total_entries || 0), 0);
   const totalParticipants = userGiveaways.reduce((sum, g) => sum + (g.unique_participants || 0), 0);
 
+  // Dashboard Stats
   const stats = [
     {
       title: 'Active Giveaways',
@@ -141,7 +187,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
+        {/* Header Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between">
             <div>
@@ -171,6 +217,8 @@ export const DashboardPage: React.FC = () => {
 
         {profile?.role === 'organizer' ? (
           <>
+            {/* Organizer Dashboard View */}
+            
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
               {stats.map((stat) => (
@@ -190,53 +238,76 @@ export const DashboardPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Recent Giveaways */}
+            {/* Your Giveaways List (Left Column) & Participants/Winners Section (Right Column) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
               <div className="lg:col-span-1">
                 <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
-                        <Trophy className="w-6 h-6 mr-3 text-pink-600" />
+                        <Gift className="w-6 h-6 mr-3 text-pink-600" />
                         Your Giveaways
                       </CardTitle>
+                      {/* Filter by status (optional) */}
+                      <select 
+                        value={statusFilter} 
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-1 border border-pink-200 rounded-lg text-sm bg-white text-gray-700"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="pending">Pending</option>
+                        <option value="ended">Ended</option>
+                        <option value="paused">Paused</option>
+                      </select>
                     </div>
                   </CardHeader>
                   <CardContent>
                     {userGiveaways.length > 0 ? (
                       <div className="space-y-4">
-                        {userGiveaways.slice(0, 10).map((giveaway) => (
+                        {userGiveaways.map((giveaway) => ( // Removed .slice(0, 10) to show all matching filter
                           <div 
                             key={giveaway.id} 
-                            className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer
+                            className={`p-4 rounded-xl transition-all duration-300 
                               ${selectedGiveaway && selectedGiveaway.id === giveaway.id 
                                 ? 'bg-gradient-to-r from-maroon-100 to-pink-100 border-l-4 border-maroon-500'
                                 : 'bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100'
                               }
                             `}
+                            // Changed parent div onClick to only act if it's the management view
+                            // Clicks on the card body itself will trigger selectGiveaway for organizers
                             onClick={() => handleSelectGiveaway(giveaway)}
                           >
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-4 mb-2">
                               <div className="bg-gradient-to-br from-maroon-500 to-pink-500 p-2 rounded-lg">
                                 <Gift className="w-5 h-5 text-white" />
                               </div>
                               <div>
                                 <h3 className="font-semibold text-maroon-800">{giveaway.title}</h3>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
                                   <span className="flex items-center">
                                     <Users className="w-4 h-4 mr-1" />
                                     {giveaway.total_entries || 0} entries
                                   </span>
+                                  <span className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    Ends: {new Date(giveaway.end_time).toLocaleDateString()}
+                                  </span>
                                 </div>
                               </div>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              giveaway.status === 'active' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {giveaway.status}
-                            </span>
+                            <div className="flex justify-between items-center">
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                    giveaway.status === 'active' ? 'bg-green-100 text-green-800' :
+                                    giveaway.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    giveaway.status === 'ended' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }`}>
+                                    {giveaway.status}
+                                </span>
+                                {/* Optional: Add a specific "View/Manage" button here if card body is not clickable */}
+                                {/* For now, the entire card is clickable for management via handleSelectGiveaway */}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -250,8 +321,9 @@ export const DashboardPage: React.FC = () => {
                 </Card>
               </div>
 
+              {/* Participants & Winners Section (Right Column) */}
               <div className="lg:col-span-2">
-                {showParticipants && selectedGiveaway ? (
+                {showParticipantsSection && selectedGiveaway ? (
                   <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -263,15 +335,15 @@ export const DashboardPage: React.FC = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setShowParticipants(false)}
+                            onClick={() => setShowParticipantsSection(false)}
                             className="text-maroon-600 hover:text-pink-600 hover:bg-pink-50"
                           >
                             Back
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleSelectWinner(selectedGiveaway.id)}
-                            loading={loading}
+                            onClick={() => handleDrawWinner(selectedGiveaway.id)} // Changed function name
+                            loading={loadingWinnerDraw} // Specific loading state
                             className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
                           >
                             <Trophy className="w-4 h-4 mr-2" />
@@ -281,7 +353,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {loading ? (
+                      {loadingParticipants ? ( // Use specific loading state
                         <div className="flex justify-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-700"></div>
                         </div>
@@ -374,6 +446,7 @@ export const DashboardPage: React.FC = () => {
                     </CardContent>
                   </Card>
                 ) : (
+                  // Default View when no giveaway is selected
                   <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl h-full">
                     <CardContent className="p-8 text-center">
                       <div className="bg-gradient-to-br from-pink-100 to-rose-100 rounded-full p-8 w-32 h-32 mx-auto mb-6">
@@ -401,7 +474,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </>
         ) : (
-          /* Participant Dashboard */
+          /* Participant Dashboard View */
           <div className="space-y-8">
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -440,8 +513,58 @@ export const DashboardPage: React.FC = () => {
               </Card>
             </div>
 
+            {/* This section will display giveaways available for participation for participants */}
+            <div className="space-y-8">
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-6">
+                    Available Giveaways
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Filter to show only active giveaways not organized by user (though user should be participant here) */}
+                    {giveaways.filter(g => g.status === 'active' && g.organizer_id !== user.id).map(giveaway => (
+                        <Card key={giveaway.id} className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                            <CardHeader>
+                                <CardTitle className="text-xl font-bold text-maroon-800">{giveaway.title}</CardTitle>
+                                <p className="text-sm text-gray-600">by {giveaway.profiles?.username || 'Unknown'}</p>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <p className="text-gray-700 line-clamp-2">{giveaway.description}</p>
+                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                    <span className="flex items-center">
+                                        <Users className="w-4 h-4 mr-1" />
+                                        {giveaway.total_entries || 0} entries
+                                    </span>
+                                    <span className="flex items-center">
+                                        <Clock className="w-4 h-4 mr-1" />
+                                        Ends: {new Date(giveaway.end_time).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <Button
+                                    type="button"
+                                    onClick={(event) => { // Use onClick with stopPropagation
+                                        event.stopPropagation(); // Prevent parent click handlers if any
+                                        handleEnterGiveaway(giveaway);
+                                    }}
+                                    // Consider a loading state per button for clarity
+                                    // loading={loadingEnterGiveaway[giveaway.id]} 
+                                    icon={Heart}
+                                    className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 w-full mt-4"
+                                >
+                                    Enter Giveaway
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    {giveaways.filter(g => g.status === 'active' && g.organizer_id !== user.id).length === 0 && (
+                        <div className="lg:col-span-3 text-center py-8">
+                            <AlertCircle className="w-12 h-12 text-pink-400 mx-auto mb-4" />
+                            <p className="text-gray-600">No active giveaways to enter right now. Check back later!</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Upgrade to Organizer */}
-            <Card className="bg-gradient-to-br from-maroon-900 via-maroon-800 to-pink-900 text-white border-none shadow-2xl">
+            <Card className="bg-gradient-to-br from-maroon-900 via-maroon-800 to-pink-900 text-white border-none shadow-2xl mt-8">
               <CardContent className="p-8 text-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-pattern-dots-white opacity-10"></div>
                 <div className="relative">
@@ -456,6 +579,8 @@ export const DashboardPage: React.FC = () => {
                   <Button
                     size="lg"
                     className="bg-white text-maroon-700 hover:bg-pink-50 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+                    // Add an onClick handler to redirect to an upgrade page or open a modal
+                    // Example: onClick={() => navigate('/upgrade-to-organizer')}
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
                     Upgrade Account
