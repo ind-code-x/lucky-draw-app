@@ -108,11 +108,7 @@ export const CreateGiveawayPage: React.FC = () => {
         }
       }
     });
-  }, [entryMethodFields, watch, trigger, errors.entry_methods]);
-
-  // THIS IS THE CRITICAL LOG: What does React Hook Form think are the errors?
-  // Check your browser's CONSOLE tab after filling the form, before clicking submit.
-  console.log('--- RHF Errors on Render (before submit):', errors); 
+  }, [entryMethodFields, watch, trigger, errors.entry_methods]); 
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -215,11 +211,6 @@ export const CreateGiveawayPage: React.FC = () => {
 
       console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
 
-      // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
-      console.log('Final data to be sent to createGiveaway:');
-      console.log('giveawayData:', giveawayData);
-      console.log('formattedPrizes:', formattedPrizes);
-      console.log('createGiveaway: Stringified cleaned data:', JSON.stringify(giveawayData, null, 2));
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
