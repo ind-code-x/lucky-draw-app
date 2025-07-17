@@ -303,7 +303,15 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('participants')
-        .select(`*, profiles:user_id(*)`)
+        .select(`
+          *,
+          profiles(
+              id,
+              username,
+              email,
+              avatar_url // Select specific profile fields, if you need them
+          )
+        `) // Change the join syntax here
         .eq('giveaway_id', giveawayId);
         
       if (error) {
