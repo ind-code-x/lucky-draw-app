@@ -298,13 +298,14 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
     }
   },
 
-  fetchParticipants: async (giveawayId: string) => {
+fetchParticipants: async (giveawayId: string) => {
     console.log(`fetchParticipants: Fetching participants for giveaway ${giveawayId}`); 
     try {
       const { data, error } = await supabase
         .from('participants')
-        .select(`id,giveaway_id,user_id,referral_code,referred_by_user_id,total_entries,created_at,profiles:user_id(id,username,email,avatar_url)`).eq('giveaway_id', giveawayId);
-    if (error) {
+        .select(`*,profiles:user_id!inner(id,username,email,avatar_url)`).eq('giveaway_id', giveawayId);
+        
+      if (error) {
         console.error('fetchParticipants: Supabase error details:', error); 
         throw error;
       }
