@@ -182,10 +182,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           unique_participants: Number(giveaway.unique_participants) || 0,
       };
 
-      // --- NEW DIAGNOSTIC STEP: Stringify the object to confirm its internal structure ---
-      console.log('createGiveaway: Stringified cleaned data:', JSON.stringify(cleanedGiveawayData, null, 2));
-      // This will throw a JSON.stringify error if there are actual circular references or non-plain object issues.
-
       const { data, error: insertGiveawayError } = await supabase
         .from('giveaways')
         .insert(cleanedGiveawayData) // Pass the explicitly constructed object
