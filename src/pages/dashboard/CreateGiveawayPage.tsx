@@ -1,7 +1,7 @@
 // CreateGiveawayPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   Gift,
@@ -21,13 +21,12 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input, Textarea } from '../../components/ui/Input'; 
+import { Input, Textarea } from '../../components/ui/Input'; // Ensure this file has forwardRef implemented for both
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuthStore } from '../../stores/authStore';
-// import { useGiveawayStore } from '../../stores/giveawayStore'; // <--- COMPLETELY REMOVED useGiveawayStore
+import { useGiveawayStore } from '../../stores/giveawayStore';
 import toast from 'react-hot-toast';
 
-// Define the data interfaces directly in this file since useGiveawayStore is removed
 interface GiveawayFormData {
   title: string;
   description: string;
@@ -51,7 +50,7 @@ interface GiveawayFormData {
 
 export const CreateGiveawayPage: React.FC = () => {
   const { user, profile } = useAuthStore();
-  // const { createGiveaway } = useGiveawayStore(); // <--- REMOVED
+  const { createGiveaway } = useGiveawayStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -70,7 +69,7 @@ export const CreateGiveawayPage: React.FC = () => {
     handleSubmit,
     watch,
     setValue,
-    trigger,
+    trigger, // Import trigger for explicit validation
     formState: { errors }
   } = useForm<GiveawayFormData>({
     defaultValues: {
@@ -111,6 +110,10 @@ export const CreateGiveawayPage: React.FC = () => {
     });
   }, [entryMethodFields, watch, trigger, errors.entry_methods]);
 
+  // THIS IS THE CRITICAL LOG: What does React Hook Form think are the errors?
+  // Check your browser's CONSOLE tab after filling the form, before clicking submit.
+  console.log('--- RHF Errors on Render (before submit):', errors); 
+
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -131,16 +134,15 @@ export const CreateGiveawayPage: React.FC = () => {
     { value: 'website_visit', label: 'Visit Website', icon: Globe },
   ];
 
-  // --- THIS IS THE MODIFIED onSubmit FUNCTION USING DIRECT FETCH ---
   const onSubmit = async (data: GiveawayFormData) => {
-    debugger; // Debugger will pause here
-    console.log('*** onSubmit function STARTED (Direct Fetch) ***'); 
+    debugger; // <--- SET THIS BREAKPOINT! Execution MUST pause here.
+    console.log('*** onSubmit function STARTED ***'); // Console log to confirm execution path
 
     setLoading(true);
     try {
-      console.log('Form data received by onSubmit (Direct Fetch):', data); 
+      console.log('Form data being submitted to onSubmit:', data); 
       
-      // Client-side validation checks (from your original code)
+      // Client-side validation checks before calling the store (these are good)
       const invalidEntryMethods = data.entry_methods.filter(
         method => method.required && !method.value
       );
@@ -166,7 +168,7 @@ export const CreateGiveawayPage: React.FC = () => {
       
       const slug = data.title ? generateSlug(data.title) : `giveaway-${Date.now()}`;
       
-      // Validate dates
+      // Validate dates if provided
       if (data.start_time && data.end_time) {
         const startTime = new Date(data.start_time);
         const endTime = new Date(data.end_time);
@@ -196,117 +198,28 @@ export const CreateGiveawayPage: React.FC = () => {
         };
       });
       
-      // Construct giveawayData (cleaned directly at source)
-      const giveawayDataForAPI = {
-        organizer_id: user.id, // User ID from auth store
+      const giveawayData = {
+        organizer_id: user.id, // Ensure user.id is valid and exists in profiles table
         title: data.title,
-        slug: slug,
+        slug,
         description: data.description,
         rules: data.rules || '',
-        // banner_url: data.banner_url || null, // Add this line if you have a banner_url input
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
-        status: 'active', // Ensure status is explicitly 'active'
-        entry_config: entry_config,
+        status: 'active' as const, // Ensure status is explicitly 'active'
+        entry_config,
         total_entries: 0,
         unique_participants: 0
       };
 
-      // Construct prizes data for API
-      const prizesForAPI = formattedPrizes.map(p => ({
-        name: p.name,
-        value: p.value,
-        quantity: p.quantity,
-        description: p.description || null,
-      }));
+      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
 
-      console.log('--- Data ready for direct fetch API call ---');
-      console.log('giveawayDataForAPI:', giveawayDataForAPI);
-      console.log('prizesForAPI:', prizesForAPI);
-
-
-      // --- DIRECT FETCH API CALL ---
-      // IMPORTANT: Replace with your ACTUAL Supabase URL and Anon Key from your Render deployment
-      const SUPABASE_API_URL = "https://jmlqqwyfdvuuhydryqdx.supabase.co"; 
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptbHFxd3lmZHZ1dWh5ZHJ5cWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwNTQ0NjMsImV4cCI6MjA2NTYzMDQ2M30.4i4k3_random_chars_here"; // Replace with your actual anon key
-
-      let userJWT = '';
-      if (user?.id) { // Only attempt to get JWT if user is logged in
-        const authSessionString = localStorage.getItem(`sb-${SUPABASE_API_URL.split('//')[1].split('.')[0]}-auth-token`); 
-        if (authSessionString) {
-          try {
-            const sessionData = JSON.parse(authSessionString);
-            if (sessionData && sessionData.currentSession && sessionData.currentSession.access_token) {
-              userJWT = sessionData.currentSession.access_token;
-            }
-          } catch (e) {
-            console.error("Error parsing auth session from localStorage:", e);
-          }
-        }
-      }
-
-      const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-      };
-      if (userJWT) {
-          headers['Authorization'] = `Bearer ${userJWT}`;
-          console.log("Direct Fetch: Using authenticated JWT for Authorization.");
-      } else {
-          console.warn("Direct Fetch: No user JWT found. Request will use anon key only. Check RLS policies if it fails with 401/403.");
-      }
-
-      console.log("Direct Fetch: Request URL:", `${SUPABASE_API_URL}/rest/v1/giveaways`);
-      console.log("Direct Fetch: Request Headers:", headers);
-      console.log("Direct Fetch: Request Body (giveawayDataForAPI):", giveawayDataForAPI);
-
-
-      const response = await fetch(`${SUPABASE_API_URL}/rest/v1/giveaways`, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(giveawayDataForAPI),
-          mode: 'cors'
-      });
-
-      const result = await response.json();
-      console.log("Direct Fetch: Raw response object:", response); 
-      console.log("Direct Fetch: Parsed JSON result:", result);
-
-      if (!response.ok) {
-          console.error("Direct Fetch: FAILED:", response.status, response.statusText, result);
-          toast.error(`Failed to create giveaway: ${result.message || response.statusText || 'Unknown error'}`);
-          setLoading(false); // Make sure loading is false on error
-          return; // Stop execution on error
-      } 
-      
-      // If giveaway creation successful, proceed with prizes
-      const insertedGiveawayId = result.id; // Supabase usually returns the inserted row on success if select() is used
-
-      if (prizesForAPI.length > 0) {
-        console.log("Direct Fetch: Attempting to insert prizes...");
-        const prizesWithGiveawayId = prizesForAPI.map(prize => ({
-          ...prize,
-          giveaway_id: insertedGiveawayId,
-        }));
-
-        const prizesResponse = await fetch(`${SUPABASE_API_URL}/rest/v1/prizes`, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(prizesWithGiveawayId),
-            mode: 'cors'
-        });
-
-        const prizesResult = await prizesResponse.json();
-        if (!prizesResponse.ok) {
-            console.error("Direct Fetch: Prizes insertion FAILED:", prizesResponse.status, prizesResponse.statusText, prizesResult);
-            toast.error(`Failed to add prizes: ${prizesResult.message || prizesResponse.statusText || 'Unknown error'}`);
-            // Consider rolling back giveaway here if prizes are essential
-            setLoading(false);
-            return;
-        }
-        console.log("Direct Fetch: Prizes inserted successfully:", prizesResult);
-      }
+      // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
+      console.log('Final data to be sent to createGiveaway:');
+      console.log('giveawayData:', giveawayData);
+      console.log('formattedPrizes:', formattedPrizes);
+      await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
       navigate('/dashboard');
@@ -319,7 +232,6 @@ export const CreateGiveawayPage: React.FC = () => {
       console.log('*** onSubmit function FINISHED (finally block) ***');
     }
   };
-
 
   const addPrize = () => {
     appendPrize({ name: '', value: 0, quantity: 1, description: '' });
@@ -351,7 +263,6 @@ export const CreateGiveawayPage: React.FC = () => {
       return true;
     };
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
@@ -502,6 +413,7 @@ export const CreateGiveawayPage: React.FC = () => {
                         className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
                         onChange={(e) => {
+                          // Only perform side effects here.
                           if (e.target.checked) {
                             trigger(`entry_methods.${index}.value`);
                           } else {
@@ -666,14 +578,6 @@ export const CreateGiveawayPage: React.FC = () => {
               className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 px-12"
             >
               Create Magical Giveaway
-            </Button>
-            {/* Direct Fetch Test Button - TEMPORARY */}
-            <Button
-              type="button"
-              onClick={sendDirectPostRequest}
-              className="bg-blue-500 hover:bg-blue-600 mt-4 text-white px-8 py-3 rounded-lg shadow-lg"
-            >
-              Test Direct POST (Browser Fetch)
             </Button>
           </div>
         </form>
