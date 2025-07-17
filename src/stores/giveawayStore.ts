@@ -304,15 +304,21 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       const { data, error } = await supabase
         .from('participants')
         .select(`
-          *,
-          profiles(
-              id,
+          id, // participant's ID
+          giveaway_id,
+          user_id, // the user_id (UUID)
+          referral_code,
+          referred_by_user_id,
+          total_entries,
+          created_at,
+          // Explicitly join to profiles using the user_id, 
+          // PostgREST typically bridges through auth.users automatically
+          profiles:user_id(
+              id, // profile's id (which is the same as user_id)
               username,
               email,
-              avatar_url // Select specific profile fields, if you need them
-          )
-        `) // Change the join syntax here
-        .eq('giveaway_id', giveawayId);
+              avatar_url)
+        `).eq('giveaway_id', giveawayId);
         
       if (error) {
         console.error('fetchParticipants: Supabase error details:', error); 
