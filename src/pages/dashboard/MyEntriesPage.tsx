@@ -13,39 +13,38 @@ import {
   Star,
   CheckCircle,
   XCircle,
-  Loader2 // For loading spinner
+  Loader2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../stores/authStore';
-import { useGiveawayStore } from '../../stores/giveawayStore'; // Import useGiveawayStore
+import { useGiveawayStore } from '../../stores/giveawayStore';
 
 export const MyEntriesPage: React.FC = () => {
   const { user, profile } = useAuthStore();
-  const { fetchMyEntries } = useGiveawayStore(); // Use the new fetchMyEntries function
-  const [myEntries, setMyEntries] = useState<any[]>([]); // State for real entries
-  const [loading, setLoading] = useState(true); // Loading state for fetching entries
+  const { fetchMyEntries } = useGiveawayStore();
+  const [myEntries, setMyEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getMyEntries = async () => {
-      if (user?.id) { // Ensure user is logged in
+      if (user?.id) {
         setLoading(true);
         try {
           const entriesData = await fetchMyEntries(user.id);
           setMyEntries(entriesData);
         } catch (error) {
           console.error('Error loading my entries:', error);
-          // Optionally show a toast error
         } finally {
           setLoading(false);
         }
       } else {
-        setLoading(false); // If no user, stop loading immediately
+        setLoading(false);
       }
     };
 
     getMyEntries();
-  }, [user?.id, fetchMyEntries]); // Re-fetch when user ID changes
+  }, [user?.id, fetchMyEntries]);
 
   if (!user) {
     return <Navigate to="/auth/login" replace />;
@@ -67,10 +66,9 @@ export const MyEntriesPage: React.FC = () => {
   };
 
   const getMethodIcon = (method: string) => {
-    // This will need to be adapted based on how entry.methods is populated from entry_config
     switch (method) {
       case 'instagram_follow':
-        return '📸'; // Using actual emoji for now, Lucide icons might be better
+        return '📸';
       case 'twitter_follow':
         return '🐦';
       case 'facebook_like':
