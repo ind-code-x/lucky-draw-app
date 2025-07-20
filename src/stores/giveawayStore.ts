@@ -16,7 +16,7 @@ interface GiveawayState {
   setStatusFilter: (status: string) => void;
   addParticipant: (giveawayId: string, userId: string) => Promise<void>;
   fetchParticipants: (giveawayId: string) => Promise<Participant[]>;
-  fetchMyEntries: (userId: string) => Promise<any[]>; // Added for MyEntriesPage
+  fetchMyEntries: (userId: string) => Promise<any[]>;
   selectRandomWinner: (giveawayId: string, prizeId: string) => Promise<{ winner: Participant, winnerRecord: Winner }>;
 }
 
@@ -33,7 +33,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       const { statusFilter } = get();
       let query = supabase
         .from('giveaways')
-        .select(`*, profiles(*), prizes(*)`) 
+        .select(`*, profiles(*), prizes(*)`)
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
@@ -293,7 +293,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           referred_by_user_id,
           total_entries,
           created_at,
-          profiles:user_id( // Fix for PGRST200: Use explicit foreign key name if needed, or simply profiles()
+          profiles:user_id(
               id,       
               username,
               email,
@@ -334,7 +334,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
             end_time,
             status,
             organizer_id,
-            profiles( // This refers to giveaways.organizer_id -> profiles.id
+            profiles(
               username,
               email
             ),
