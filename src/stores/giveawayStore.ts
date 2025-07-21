@@ -289,7 +289,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
         .select(`
           id, 
           giveaway_id,
-          user_id, // We need user_id to fetch the profile later
+          user_id,
           referral_code,
           referred_by_user_id,
           total_entries,
