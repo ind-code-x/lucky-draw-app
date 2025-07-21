@@ -17,7 +17,8 @@ import {
   Search,
   List,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2 // For loading spinner
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -26,32 +27,33 @@ import { useGiveawayStore } from '../../stores/giveawayStore';
 import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
-  const { user, profile, isSubscribed } = useAuthStore(); // Added isSubscribed
+  const { user, profile, isSubscribed } = useAuthStore();
   const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore(); 
   
-  const [selectedGiveaway, setSelectedGiveaway] = useState(null);
-  const [participants, setParticipants] = useState<any[]>([]); // Explicitly type participants
+  const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null); // Use 'any' for now or define a more specific type
+  const [participants, setParticipants] = useState<any[]>([]); 
   const [loadingParticipants, setLoadingParticipants] = useState(false); 
   const [loadingWinnerDraw, setLoadingWinnerDraw] = useState(false); 
-  const [winners, setWinners] = useState<any[]>([]); // Explicitly type winners
+  const [drawnWinners, setDrawnWinners] = useState<any[]>([]); // Renamed to clearly separate from all participants
   const [showParticipantsSection, setShowParticipantsSection] = useState(false); 
 
-  // Fetch giveaways on user change or filter change
   useEffect(() => {
     if (user) {
       fetchGiveaways();
     }
   }, [user, fetchGiveaways, statusFilter]); 
 
-  // Function to load participants for a selected giveaway
   const loadParticipants = async (giveawayId: string) => {
-    if (!giveawayId) return; // Guard clause
+    if (!giveawayId) return;
     
     setLoadingParticipants(true);
     try {
       const participantData = await fetchParticipants(giveawayId);
       setParticipants(participantData);
-      setWinners([]); // Clear previous winners when new giveaway is selected
+      setDrawnWinners([]); // Clear previous drawn winners when new giveaway is selected
+      // TODO: In a real app, you would also fetch existing winners for this giveaway here:
+      // const existingWinners = await fetchExistingWinners(giveawayId); // Need to implement this in giveawayStore
+      // setDrawnWinners(existingWinners);
     } catch (error) {
       console.error('loadParticipants: Error fetching participants:', error);
       toast.error('Failed to load participants');
@@ -60,99 +62,112 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  // Handler for when an organizer selects a giveaway from the list
   const handleSelectGiveaway = (giveaway: any) => {
     setSelectedGiveaway(giveaway);
     loadParticipants(giveaway.id);
     setShowParticipantsSection(true); 
   };
 
-  // Handler for when an organizer draws a winner
-  const handleDrawWinner = async (giveawayId: string) => { // Renamed from handleSelectWinner for clarity
+  const handleDrawWinner = async (giveawayId: string) => {
     if (!selectedGiveaway || !selectedGiveaway.prizes || selectedGiveaway.prizes.length === 0) {
       toast.error('No prizes available for this giveaway.');
       return;
     }
     
-    if (participants.length === 0) {
-      toast.error('No participants available to select a winner.');
+    // Find a prize that has NOT yet been drawn
+    const prizeToDraw = selectedGiveaway.prizes.find((p: any) => 
+      !drawnWinners.some(dw => dw.prize.id === p.id) // Check if this prize ID is in the drawnWinners list
+    );
+
+    if (!prizeToDraw) {
+      toast.error('All prizes for this giveaway have already been drawn.');
+      return;
+    }
+
+    // Filter participants who haven't won THIS SPECIFIC PRIZE yet
+    const eligibleParticipants = participants.filter(p => 
+      !drawnWinners.some(dw => dw.profiles?.id === p.profiles?.id && dw.prize.id === prizeToDraw.id)
+    );
+
+    if (eligibleParticipants.length === 0) {
+      toast.error('No eligible participants left to draw for this prize.');
       return;
     }
 
     setLoadingWinnerDraw(true); 
     try {
-      // For simplicity, drawing for the first prize. Adjust if you have multiple prizes
-      const prizeId = selectedGiveaway.prizes[0].id;
-      const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeId);
+      // Logic to select a random eligible participant
+      const randomIndex = Math.floor(Math.random() * eligibleParticipants.length);
+      const randomParticipant = eligibleParticipants[randomIndex];
+
+      const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeToDraw.id);
       
-      // Find the winner's details from participants (winner.participant_id is the user ID)
-      const winnerWithDetails = participants.find((p: any) => p.user_id === winner.participant_id); 
+      // Ensure the winner details are found (this winner.participant_id is the participants.id from the DB)
+      const winnerWithDetails = participants.find((p: any) => p.id === winnerRecord.participant_id); // Match by participants.id, not user_id here
       
       if (winnerWithDetails) {
         const newWinner = {
           ...winnerWithDetails,
-          prize: selectedGiveaway.prizes[0], // Attach the prize object
+          prize: prizeToDraw, // Attach the specific prize that was won
           winnerRecord // The newly created winner record from DB
         };
-        setWinners(prev => [...prev, newWinner]);
-        toast.success('Winner selected successfully! 🎉');
+        setDrawnWinners(prev => [...prev, newWinner]); // Add to the list of drawn winners
+        toast.success(`🎉 ${winnerWithDetails.profiles?.username || 'Someone'} won ${prizeToDraw.name}!`);
       } else {
-        toast.error('Selected winner details could not be found.');
+        toast.error('Selected winner details could not be found after drawing.');
       }
     } catch (error) {
       console.error('handleDrawWinner: Error selecting winner:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to select winner');
+      // More specific error handling for constraint violation
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+          toast.error(`Error: This participant has already won this prize.`);
+      } else {
+          toast.error(error instanceof Error ? error.message : 'Failed to select winner.');
+      }
     } finally {
       setLoadingWinnerDraw(false); 
     }
   };
 
-  // New function to handle participant entry into a giveaway
-  const { addParticipant } = useGiveawayStore(); // Import addParticipant
-
   const handleEnterGiveaway = async (giveaway: any) => {
-      // Check if user is logged in
       if (!user) {
           toast.error("Please sign in to participate in giveaways.");
           navigate('/auth/login'); 
           return;
       }
 
-      // Check if the user is subscribed (based on your authStore logic)
-      if (!isSubscribed) { // This relies on isSubscribed state from useAuthStore
+      if (profile?.role === 'participant' && !isSubscribed) { // Only check subscription for participants
           toast.error("You must have an active subscription to enter this giveaway.");
-          // You might navigate to a subscription page here
           // navigate('/subscription'); 
           return;
       }
 
-      setLoadingParticipants(true); // Reusing loadingParticipants, or create a specific button loading state
+      setLoadingParticipants(true); 
       try {
           await addParticipant(giveaway.id, user.id);
           toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
-          // Optionally refetch giveaways to update the entry count on the card
           await fetchGiveaways(); 
       } catch (error) {
           console.error('handleEnterGiveaway: Error adding participant:', error);
-          toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway. You might have already entered.');
+          if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+              toast.error('You have already entered this giveaway.');
+          } else {
+              toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
+          }
       } finally {
           setLoadingParticipants(false);
       }
   };
 
-
-  // Redirect unauthenticated users
   if (!user) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  // Filter giveaways for the current organizer
   const userGiveaways = giveaways.filter(g => g.organizer_id === user.id);
   const activeGiveaways = userGiveaways.filter(g => g.status === 'active');
   const totalEntries = userGiveaways.reduce((sum, g) => sum + (g.total_entries || 0), 0);
   const totalParticipants = userGiveaways.reduce((sum, g) => sum + (g.unique_participants || 0), 0);
 
-  // Dashboard Stats
   const stats = [
     {
       title: 'Active Giveaways',
@@ -265,7 +280,7 @@ export const DashboardPage: React.FC = () => {
                   <CardContent>
                     {userGiveaways.length > 0 ? (
                       <div className="space-y-4">
-                        {userGiveaways.map((giveaway) => ( // Removed .slice(0, 10) to show all matching filter
+                        {userGiveaways.map((giveaway) => ( 
                           <div 
                             key={giveaway.id} 
                             className={`p-4 rounded-xl transition-all duration-300 
@@ -274,8 +289,6 @@ export const DashboardPage: React.FC = () => {
                                 : 'bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100'
                               }
                             `}
-                            // Changed parent div onClick to only act if it's the management view
-                            // Clicks on the card body itself will trigger selectGiveaway for organizers
                             onClick={() => handleSelectGiveaway(giveaway)}
                           >
                             <div className="flex items-center space-x-4 mb-2">
@@ -305,8 +318,6 @@ export const DashboardPage: React.FC = () => {
                                 }`}>
                                     {giveaway.status}
                                 </span>
-                                {/* Optional: Add a specific "View/Manage" button here if card body is not clickable */}
-                                {/* For now, the entire card is clickable for management via handleSelectGiveaway */}
                             </div>
                           </div>
                         ))}
@@ -342,8 +353,8 @@ export const DashboardPage: React.FC = () => {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleDrawWinner(selectedGiveaway.id)} // Changed function name
-                            loading={loadingWinnerDraw} // Specific loading state
+                            onClick={() => handleDrawWinner(selectedGiveaway.id)} 
+                            loading={loadingWinnerDraw} 
                             className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
                           >
                             <Trophy className="w-4 h-4 mr-2" />
@@ -353,22 +364,22 @@ export const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {loadingParticipants ? ( // Use specific loading state
+                      {loadingParticipants ? ( 
                         <div className="flex justify-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-700"></div>
                         </div>
                       ) : (
                         <>
                           {/* Winners Section */}
-                          {winners.length > 0 && (
+                          {drawnWinners.length > 0 && ( 
                             <div className="mb-8">
                               <h3 className="text-xl font-bold text-maroon-800 mb-4 flex items-center">
                                 <Award className="w-5 h-5 mr-2 text-pink-600" />
                                 Winners
                               </h3>
                               <div className="space-y-3">
-                                {winners.map((winner, idx) => (
-                                  <div key={idx} className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
+                                {drawnWinners.map((winner, idx) => ( 
+                                  <div key={winner.winnerRecord?.id || idx} className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
                                     <div className="flex items-center space-x-3">
                                       <div className="bg-gradient-to-br from-amber-500 to-yellow-500 p-2 rounded-full">
                                         <Trophy className="w-5 h-5 text-white" />
