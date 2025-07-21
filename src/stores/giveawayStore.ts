@@ -282,32 +282,58 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
   },
 
   fetchParticipants: async (giveawayId: string) => {
-    console.log(`fetchParticipants: Fetching participants for giveaway ${giveawayId}`);
+    console.log(`fetchParticipants: Fetching participants for giveaway ${giveawayId}`); 
     try {
-      const { data, error } = await supabase
+      const { data: participantsData, error: participantsError } = await supabase
         .from('participants')
         .select(`
-          id,
+          id, 
           giveaway_id,
-          user_id,
+          user_id, // We need user_id to fetch the profile later
           referral_code,
           referred_by_user_id,
           total_entries,
-          created_at,
-          profiles:user_id(
-              id,
-              username,
-              email,
-              avatar_url
-          )
-        `)
+          created_at
+        `) 
         .eq('giveaway_id', giveawayId);
 
-      if (error) {
-        console.error('fetchParticipants: Supabase error details:', error);
-        throw error;
+      if (participantsError) {
+        console.error('fetchParticipants: Supabase error details for participants data:', participantsError); 
+        throw participantsError;
       }
-      return data || [];
+
+      if (!participantsData || participantsData.length === 0) {
+        console.log('fetchParticipants: No participants found for this giveaway.');
+        return [];
+      }
+
+      const userIds = [...new Set(participantsData.map(p => p.user_id))];
+
+      let profilesData: Profile[] = [];
+      if (userIds.length > 0) {
+          const { data: fetchedProfiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select(`id, username, email, avatar_url`)
+              .in('id', userIds);
+
+          if (profilesError) {
+              console.error('fetchParticipants: Error fetching profiles for participants:', profilesError);
+          } else {
+              profilesData = fetchedProfiles || [];
+          }
+      }
+
+      const combinedParticipants = participantsData.map(participant => {
+          const profile = profilesData.find(prof => prof.id === participant.user_id);
+          return {
+              ...participant,
+              profiles: profile || null
+          };
+      });
+
+      console.log('fetchParticipants: Data loaded and combined with profiles.', combinedParticipants); 
+      return combinedParticipants;
+
     } catch (error) {
       console.error('fetchParticipants: Error in catch block:', error);
       return [];
