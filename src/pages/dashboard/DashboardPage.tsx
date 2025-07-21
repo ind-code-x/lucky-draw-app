@@ -18,7 +18,7 @@ import {
   List,
   CheckCircle,
   AlertCircle,
-  Loader2 // For loading spinner
+  Loader2
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -30,11 +30,11 @@ export const DashboardPage: React.FC = () => {
   const { user, profile, isSubscribed } = useAuthStore();
   const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore(); 
   
-  const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null); // Use 'any' for now or define a more specific type
+  const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]); 
   const [loadingParticipants, setLoadingParticipants] = useState(false); 
   const [loadingWinnerDraw, setLoadingWinnerDraw] = useState(false); 
-  const [drawnWinners, setDrawnWinners] = useState<any[]>([]); // Renamed to clearly separate from all participants
+  const [drawnWinners, setDrawnWinners] = useState<any[]>([]);
   const [showParticipantsSection, setShowParticipantsSection] = useState(false); 
 
   useEffect(() => {
@@ -50,10 +50,7 @@ export const DashboardPage: React.FC = () => {
     try {
       const participantData = await fetchParticipants(giveawayId);
       setParticipants(participantData);
-      setDrawnWinners([]); // Clear previous drawn winners when new giveaway is selected
-      // TODO: In a real app, you would also fetch existing winners for this giveaway here:
-      // const existingWinners = await fetchExistingWinners(giveawayId); // Need to implement this in giveawayStore
-      // setDrawnWinners(existingWinners);
+      setDrawnWinners([]);
     } catch (error) {
       console.error('loadParticipants: Error fetching participants:', error);
       toast.error('Failed to load participants');
@@ -76,7 +73,7 @@ export const DashboardPage: React.FC = () => {
     
     // Find a prize that has NOT yet been drawn
     const prizeToDraw = selectedGiveaway.prizes.find((p: any) => 
-      !drawnWinners.some(dw => dw.prize.id === p.id) // Check if this prize ID is in the drawnWinners list
+      !drawnWinners.some(dw => dw.prize.id === p.id)
     );
 
     if (!prizeToDraw) {
@@ -84,7 +81,6 @@ export const DashboardPage: React.FC = () => {
       return;
     }
 
-    // Filter participants who haven't won THIS SPECIFIC PRIZE yet
     const eligibleParticipants = participants.filter(p => 
       !drawnWinners.some(dw => dw.profiles?.id === p.profiles?.id && dw.prize.id === prizeToDraw.id)
     );
@@ -96,29 +92,26 @@ export const DashboardPage: React.FC = () => {
 
     setLoadingWinnerDraw(true); 
     try {
-      // Logic to select a random eligible participant
       const randomIndex = Math.floor(Math.random() * eligibleParticipants.length);
       const randomParticipant = eligibleParticipants[randomIndex];
 
       const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeToDraw.id);
       
-      // Ensure the winner details are found (this winner.participant_id is the participants.id from the DB)
-      const winnerWithDetails = participants.find((p: any) => p.id === winnerRecord.participant_id); // Match by participants.id, not user_id here
+      const winnerWithDetails = participants.find((p: any) => p.id === winnerRecord.participant_id);
       
       if (winnerWithDetails) {
         const newWinner = {
           ...winnerWithDetails,
-          prize: prizeToDraw, // Attach the specific prize that was won
-          winnerRecord // The newly created winner record from DB
+          prize: prizeToDraw,
+          winnerRecord
         };
-        setDrawnWinners(prev => [...prev, newWinner]); // Add to the list of drawn winners
+        setDrawnWinners(prev => [...prev, newWinner]);
         toast.success(`🎉 ${winnerWithDetails.profiles?.username || 'Someone'} won ${prizeToDraw.name}!`);
       } else {
         toast.error('Selected winner details could not be found after drawing.');
       }
     } catch (error) {
       console.error('handleDrawWinner: Error selecting winner:', error);
-      // More specific error handling for constraint violation
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
           toast.error(`Error: This participant has already won this prize.`);
       } else {
@@ -136,7 +129,7 @@ export const DashboardPage: React.FC = () => {
           return;
       }
 
-      if (profile?.role === 'participant' && !isSubscribed) { // Only check subscription for participants
+      if (profile?.role === 'participant' && !isSubscribed) {
           toast.error("You must have an active subscription to enter this giveaway.");
           // navigate('/subscription'); 
           return;
