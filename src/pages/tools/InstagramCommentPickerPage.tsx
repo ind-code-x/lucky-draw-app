@@ -15,7 +15,8 @@ import {
   BarChart3,
   Settings,
   Info,
-  Shield
+  Shield,
+  Loader2 
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -31,6 +32,7 @@ interface Comment {
   profileUrl?: string;
   verified?: boolean;
   like_count?: number;
+  replies?: Comment[];
 }
 
 interface Winner {
@@ -57,7 +59,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
   const [isCollecting, setIsCollecting] = useState(false);
 
   const accessToken = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-
+  
   const extractPostId = (url: string): string | null => {
     const match = url.match(/(?:\/p\/|\/reel\/|\/tv\/)([a-zA-Z0-9_-]+)/);
     return match ? match[1] : null;
@@ -65,19 +67,25 @@ export const InstagramCommentPickerPage: React.FC = () => {
 
   const extractComments = async () => {
     if (!instagramUrl.trim()) {
-      toast.error('Please enter an Instagram post URL');
+      toast.error('Please enter an Instagram post URL.');
       return;
     }
 
     if (!isValidInstagramUrl(instagramUrl)) {
-      toast.error('Please enter a valid Instagram post or reel URL');
+      toast.error('Please enter a valid Instagram post or reel URL.');
       return;
+    }
+
+    if (!isApiConfigured) {
+        toast.error('Instagram API credentials are not configured.');
+        return;
     }
 
     setIsLoading(true);
     setIsCollecting(true);
     setComments([]);
     setWinners([]);
+    let allFetchedComments: Comment[] = [];
 
     try {
       // Step 1: Get user's pages
@@ -87,7 +95,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       
       if (!pagesResponse.ok) {
         const error = await pagesResponse.json();
-        throw new Error(error.error?.message || 'Failed to fetch Facebook pages');
+        throw new Error(error.error?.message || 'Failed to fetch Facebook pages. Check user_token or permissions (pages_show_list).');
       }
 
       const pagesData = await pagesResponse.json();
@@ -96,83 +104,137 @@ export const InstagramCommentPickerPage: React.FC = () => {
         throw new Error('No Facebook pages found. Make sure your access token has pages_show_list permission.');
       }
 
-      // Step 2: Find Instagram Business Account
+      // Step 2: Find Instagram Business Account and its Page Access Token
       let instagramAccountId = null;
       let pageAccessToken = null;
 
+      // Find the first page that has an Instagram Business Account attached
       for (const page of pagesData.data) {
         try {
           const igResponse = await fetch(
-            `https://graph.facebook.com/v19.0/712069925320615?fields=instagram_business_account&access_token=${accessToken}`
+            `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token}` // Use page.id and page.access_token
           );
           
           if (igResponse.ok) {
             const igData = await igResponse.json();
             if (igData.instagram_business_account) {
               instagramAccountId = igData.instagram_business_account.id;
-              pageAccessToken = page.access_token;
+              pageAccessToken = page.access_token; // Use the Page Access Token for further API calls
               break;
             }
           }
         } catch (error) {
-          console.log('No Instagram account for page:', page.name);
+          console.warn('No Instagram Business Account for Facebook page:', page.name, error);
         }
       }
 
       if (!instagramAccountId) {
-        throw new Error('No Instagram Business Account found. Make sure your Facebook page is connected to an Instagram Business Account.');
+        throw new Error('No Instagram Business Account found. Ensure your Facebook page is connected to an Instagram Business Account and your user token has necessary permissions (instagram_basic, pages_read_engagement).');
       }
 
-      // Step 3: Get Instagram media to find the post
-      const mediaResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${instagramAccountId}/media?fields=id,media_url,permalink,timestamp&access_token=${pageAccessToken || accessToken}`
-      );
-
-      if (!mediaResponse.ok) {
-        const error = await mediaResponse.json();
-        throw new Error(error.error?.message || 'Failed to fetch Instagram media');
-      }
-
-      const mediaData = await mediaResponse.json();
-      
-      if (!mediaData.data || mediaData.data.length === 0) {
-        throw new Error('No Instagram posts found in your account.');
-      }
-
-      // Find the matching post
+      // Step 3: Get Instagram media to find the target post
       const postId = extractPostId(instagramUrl);
-      const targetPost = mediaData.data.find(post => 
-        post.permalink?.includes(postId || '') || 
-        post.id === postId
+      if (!postId) {
+        throw new Error('Could not extract post ID from the provided URL.');
+      }
+
+      // Fetch specific media item by permalink or shortcode
+      const mediaItemResponse = await fetch(
+        `https://graph.facebook.com/v19.0/${instagramAccountId}?fields=media{permalink,shortcode,id}&access_token=${pageAccessToken}` // Query media from the IG account, not just /media edge
       );
+      if (!mediaItemResponse.ok) {
+          const error = await mediaItemResponse.json();
+          throw new Error(error.error?.message || 'Failed to fetch Instagram media items from your account.');
+      }
+      const mediaItemData = await mediaItemResponse.json();
+      const targetPost = mediaItemData.media?.data?.find((media: any) =>
+          media.shortcode === postId || media.permalink.includes(postId)
+      );
+
 
       if (!targetPost) {
-        throw new Error(`Post not found in your Instagram Business Account. Make sure the URL is from your own account and the post exists.`);
+        throw new Error(`Post not found in your Instagram Business Account media. Ensure the URL is correct and the post exists.`);
       }
 
-      // Step 4: Get comments for the post
-      const commentsResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${targetPost.id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&access_token=${pageAccessToken || accessToken}`
-      );
-
-      if (!commentsResponse.ok) {
-        const error = await commentsResponse.json();
-        throw new Error(error.error?.message || 'Failed to fetch comments');
+      // Step 4: Get comments for the post with pagination
+      let nextCommentsUrl = `https://graph.facebook.com/v19.0/${targetPost.id}/comments?fields=id,text,username,timestamp,like_count,from{id,username}&limit=100&access_token=${pageAccessToken}`;
+      if (includeReplies) {
+          nextCommentsUrl += ',replies{id,text,username,timestamp,from{id,username}}';
       }
 
-      const commentsData = await commentsResponse.json();
+      let commentsCollectedCount = 0;
+
+      while (nextCommentsUrl && commentsCollectedCount < maxComments) {
+        const currentCommentsResponse = await fetch(nextCommentsUrl);
+        if (!currentCommentsResponse.ok) {
+          const error = await currentCommentsResponse.json();
+          throw new Error(error.error?.message || 'Failed to fetch comments during pagination.');
+        }
+
+        const currentCommentsData = await currentCommentsResponse.json();
+        
+        // Process comments and their replies
+        const processedPageComments = (currentCommentsData.data || []).flatMap((comment: any) => {
+            const baseComment: Comment = {
+                id: comment.id,
+                username: comment.from?.username || comment.username || 'Unknown User', // Use 'from.username' for Graph API v5.0+
+                text: comment.text,
+                timestamp: comment.timestamp,
+                like_count: comment.like_count,
+                profileUrl: comment.from?.id ? `https://www.instagram.com/${comment.from.username}` : undefined, // Construct profile URL if user ID is available
+            };
+            
+            // Add replies if enabled
+            const replies: Comment[] = [];
+            if (includeReplies && comment.replies?.data) {
+                comment.replies.data.forEach((reply: any) => {
+                    replies.push({
+                        id: reply.id,
+                        username: reply.from?.username || reply.username || 'Unknown User (Reply)',
+                        text: reply.text,
+                        timestamp: reply.timestamp,
+                        profileUrl: reply.from?.id ? `https://www.instagram.com/${reply.from.username}` : undefined,
+                    });
+                });
+            }
+            return [baseComment, ...replies]; // Flatten comments and replies
+        });
+
+        // Filter spam (placeholder for actual implementation)
+        const filteredPageComments = filterSpam 
+            ? processedPageComments.filter(c => !c.text.toLowerCase().includes('spam')) // Basic example
+            : processedPageComments;
+
+        allFetchedComments = allFetchedComments.concat(filteredPageComments);
+        commentsCollectedCount = allFetchedComments.length;
+
+        // Set comments periodically to show progress
+        setComments([...allFetchedComments]); 
+        toast.loading(`Collecting comments: ${commentsCollectedCount} fetched...`, { id: 'collecting-toast', duration: 1000 });
+
+
+        // Get next page URL
+        nextCommentsUrl = currentCommentsData.paging?.next || null;
+
+        if (commentsCollectedCount >= maxComments) {
+            console.log(`Max comments limit (${maxComments}) reached.`);
+            break; 
+        }
+      }
       
-      if (!commentsData.data || commentsData.data.length === 0) {
-        toast.warning('No comments found on this post');
-        setIsCollecting(false);
-        return;
+      toast.dismiss('collecting-toast');
+      if (allFetchedComments.length === 0) {
+        toast.warning('No comments found on this post after filtering.');
+      } else {
+        toast.success(`Successfully fetched ${allFetchedComments.length} comments.`);
       }
+      setComments(allFetchedComments);
 
-      setComments(commentsData.data);
-      toast.success(`Fetched ${commentsData.data.length} comments.`);
     } catch (err: any) {
-      toast.error(err.message || 'An unexpected error occurred');
-      } finally {
+      toast.dismiss('collecting-toast');
+      toast.error(err.message || 'An unexpected error occurred during comment extraction.');
+      console.error('Comment extraction error:', err);
+    } finally {
       setIsLoading(false);
       setIsCollecting(false);
     }
@@ -181,50 +243,49 @@ export const InstagramCommentPickerPage: React.FC = () => {
   // Draw winners
   const drawWinners = () => {
     if (comments.length === 0) {
-      toast.error('No comments to draw from');
+      toast.error('No comments to draw from. Please extract comments first.');
       return;
     }
 
-    if (numberOfWinners > comments.length) {
-      toast.error(`Cannot draw ${numberOfWinners} winners from ${comments.length} comments`);
+    // Filter comments based on "Allow duplicate users" setting
+    let availableCommentsForDraw: Comment[] = [];
+    if (!allowDuplicateUsers) {
+      const uniqueUsersMap = new Map<string, Comment>();
+      comments.forEach(comment => {
+        if (comment.username && !uniqueUsersMap.has(comment.username.toLowerCase())) {
+          uniqueUsersMap.set(comment.username.toLowerCase(), comment);
+        }
+      });
+      availableCommentsForDraw = Array.from(uniqueUsersMap.values());
+    } else {
+      availableCommentsForDraw = [...comments];
+    }
+
+    if (numberOfWinners > availableCommentsForDraw.length) {
+      toast.error(`Cannot draw ${numberOfWinners} winners. Only ${availableCommentsForDraw.length} unique comments/users available.`);
       return;
     }
 
     setIsDrawing(true);
 
     setTimeout(() => {
-      let availableComments = [...comments];
       const selectedWinners: Winner[] = [];
+      let tempAvailableComments = [...availableCommentsForDraw];
 
-      if (!allowDuplicateUsers) {
-        const uniqueUsers = new Map();
-        availableComments.forEach(comment => {
-          if (!uniqueUsers.has((comment.username || '').toLowerCase())) {
-            uniqueUsers.set((comment.username || '').toLowerCase(), comment);
-          }
-        });
-        availableComments = Array.from(uniqueUsers.values());
-      }
-
-      for (let i = 0; i < numberOfWinners && availableComments.length > 0; i++) {
-        const randomIndex = Math.floor(Math.random() * availableComments.length);
-        const winner = availableComments[randomIndex];
+      for (let i = 0; i < numberOfWinners; i++) {
+        const randomIndex = Math.floor(Math.random() * tempAvailableComments.length);
+        const winnerComment = tempAvailableComments[randomIndex];
         
         selectedWinners.push({
-          id: winner.id,
-          username: winner.username,
-          text: winner.text,
+          id: winnerComment.id,
+          username: winnerComment.username,
+          text: winnerComment.text,
           position: i + 1,
-          profileUrl: winner.profileUrl
+          profileUrl: winnerComment.profileUrl
         });
 
-        if (!allowDuplicateUsers) {
-          availableComments = availableComments.filter(c => 
-            (c.username || '').toLowerCase() !== (winner.username || '').toLowerCase()
-          );
-        } else {
-          availableComments.splice(randomIndex, 1);
-        }
+        // Remove the drawn winner from the pool for subsequent draws within this batch
+        tempAvailableComments.splice(randomIndex, 1);
       }
 
       setWinners(selectedWinners);
@@ -269,7 +330,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
         username: c.username,
         text: c.text,
         profileUrl: c.profileUrl,
-        verified: c.verified,
+        verified: c.verified, // May not be reliably available from Graph API
         timestamp: c.timestamp,
         like_count: c.like_count
       }))
@@ -337,7 +398,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
                     <div className="flex-1">
                       <h3 className="text-2xl font-bold text-amber-800 mb-2">Instagram API Configuration Required</h3>
                       <p className="text-amber-700 leading-relaxed mb-4">
-                        To extract real Instagram comments, you need to configure your Instagram Graph API credentials. 
+                        To extract real Instagram comments, you need to configure your Instagram Graph API credentials.
                         The tool will show demo data until configured.
                       </p>
                       <div className="bg-white/60 rounded-lg p-4 border border-amber-200">
@@ -548,8 +609,8 @@ export const InstagramCommentPickerPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Access Token:</span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN 
-                        ? 'bg-green-100 text-green-800' 
+                      import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
                       {import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN ? 'Configured' : 'Missing'}
@@ -558,8 +619,8 @@ export const InstagramCommentPickerPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">App ID:</span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      import.meta.env.VITE_INSTAGRAM_APP_ID 
-                        ? 'bg-green-100 text-green-800' 
+                      import.meta.env.VITE_INSTAGRAM_APP_ID
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
                       {import.meta.env.VITE_INSTAGRAM_APP_ID ? 'Configured' : 'Missing'}
@@ -705,6 +766,12 @@ export const InstagramCommentPickerPage: React.FC = () => {
                               )}
                             </div>
                             <p className="text-gray-700 text-sm">{winner.text}</p>
+                            {/* Timestamp is not part of Winner interface, added to comment if needed */}
+                            {/* {winner.timestamp && (
+                              <p className="text-gray-500 text-xs mt-1">
+                                {new Date(winner.timestamp).toLocaleString()}
+                              </p>
+                            )} */}
                           </div>
                         </div>
                       </div>
