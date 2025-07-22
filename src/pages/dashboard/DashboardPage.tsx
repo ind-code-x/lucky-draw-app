@@ -2,12 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Trophy, 
-  Users, 
-  Calendar, 
-  TrendingUp,
+import {
+  Plus,
+  Trophy,
+  Users,
+  Calendar,
   Gift,
   Sparkles,
   Heart,
@@ -28,24 +27,24 @@ import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
   const { user, profile, isSubscribed } = useAuthStore();
-  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore(); 
-  
+  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore();
+
   const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null);
-  const [participants, setParticipants] = useState<any[]>([]); 
-  const [loadingParticipants, setLoadingParticipants] = useState(false); 
-  const [loadingWinnerDraw, setLoadingWinnerDraw] = useState(false); 
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [loadingWinnerDraw, setLoadingWinnerDraw] = useState(false);
   const [drawnWinners, setDrawnWinners] = useState<any[]>([]);
-  const [showParticipantsSection, setShowParticipantsSection] = useState(false); 
+  const [showParticipantsSection, setShowParticipantsSection] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchGiveaways();
     }
-  }, [user, fetchGiveaways, statusFilter]); 
+  }, [user, fetchGiveaways, statusFilter]);
 
   const loadParticipants = async (giveawayId: string) => {
     if (!giveawayId) return;
-    
+
     setLoadingParticipants(true);
     try {
       const participantData = await fetchParticipants(giveawayId);
@@ -62,7 +61,7 @@ export const DashboardPage: React.FC = () => {
   const handleSelectGiveaway = (giveaway: any) => {
     setSelectedGiveaway(giveaway);
     loadParticipants(giveaway.id);
-    setShowParticipantsSection(true); 
+    setShowParticipantsSection(true);
   };
 
   const handleDrawWinner = async (giveawayId: string) => {
@@ -70,9 +69,9 @@ export const DashboardPage: React.FC = () => {
       toast.error('No prizes available for this giveaway.');
       return;
     }
+
     
-    // Find a prize that has NOT yet been drawn
-    const prizeToDraw = selectedGiveaway.prizes.find((p: any) => 
+    const prizeToDraw = selectedGiveaway.prizes.find((p: any) =>
       !drawnWinners.some(dw => dw.prize.id === p.id)
     );
 
@@ -81,7 +80,8 @@ export const DashboardPage: React.FC = () => {
       return;
     }
 
-    const eligibleParticipants = participants.filter(p => 
+    
+    const eligibleParticipants = participants.filter(p =>
       !drawnWinners.some(dw => dw.profiles?.id === p.profiles?.id && dw.prize.id === prizeToDraw.id)
     );
 
@@ -90,20 +90,23 @@ export const DashboardPage: React.FC = () => {
       return;
     }
 
-    setLoadingWinnerDraw(true); 
+    setLoadingWinnerDraw(true);
     try {
+      
       const randomIndex = Math.floor(Math.random() * eligibleParticipants.length);
       const randomParticipant = eligibleParticipants[randomIndex];
 
+      
       const { winner, winnerRecord } = await selectRandomWinner(giveawayId, prizeToDraw.id);
+
       
       const winnerWithDetails = participants.find((p: any) => p.id === winnerRecord.participant_id);
-      
+
       if (winnerWithDetails) {
         const newWinner = {
           ...winnerWithDetails,
           prize: prizeToDraw,
-          winnerRecord
+          winnerRecord 
         };
         setDrawnWinners(prev => [...prev, newWinner]);
         toast.success(`🎉 ${winnerWithDetails.profiles?.username || 'Someone'} won ${prizeToDraw.name}!`);
@@ -112,34 +115,34 @@ export const DashboardPage: React.FC = () => {
       }
     } catch (error) {
       console.error('handleDrawWinner: Error selecting winner:', error);
+      
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
           toast.error(`Error: This participant has already won this prize.`);
       } else {
           toast.error(error instanceof Error ? error.message : 'Failed to select winner.');
       }
     } finally {
-      setLoadingWinnerDraw(false); 
+      setLoadingWinnerDraw(false);
     }
   };
 
   const handleEnterGiveaway = async (giveaway: any) => {
       if (!user) {
           toast.error("Please sign in to participate in giveaways.");
-          navigate('/auth/login'); 
+          navigate('/auth/login');
           return;
       }
 
       if (profile?.role === 'participant' && !isSubscribed) {
           toast.error("You must have an active subscription to enter this giveaway.");
-          // navigate('/subscription'); 
           return;
       }
 
-      setLoadingParticipants(true); 
+      setLoadingParticipants(true);
       try {
           await addParticipant(giveaway.id, user.id);
           toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
-          await fetchGiveaways(); 
+          await fetchGiveaways();
       } catch (error) {
           console.error('handleEnterGiveaway: Error adding participant:', error);
           if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
@@ -203,7 +206,7 @@ export const DashboardPage: React.FC = () => {
                 Welcome back, {profile?.username || 'User'}! ✨
               </h1>
               <p className="text-xl text-gray-600">
-                {profile?.role === 'organizer' 
+                {profile?.role === 'organizer'
                   ? 'Manage your magical giveaways and engage your audience'
                   : 'Track your entries and discover new giveaways'
                 }
@@ -226,7 +229,7 @@ export const DashboardPage: React.FC = () => {
         {profile?.role === 'organizer' ? (
           <>
             {/* Organizer Dashboard View */}
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
               {stats.map((stat) => (
@@ -257,8 +260,8 @@ export const DashboardPage: React.FC = () => {
                         Your Giveaways
                       </CardTitle>
                       {/* Filter by status (optional) */}
-                      <select 
-                        value={statusFilter} 
+                      <select
+                        value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="px-3 py-1 border border-pink-200 rounded-lg text-sm bg-white text-gray-700"
                       >
@@ -273,11 +276,11 @@ export const DashboardPage: React.FC = () => {
                   <CardContent>
                     {userGiveaways.length > 0 ? (
                       <div className="space-y-4">
-                        {userGiveaways.map((giveaway) => ( 
-                          <div 
-                            key={giveaway.id} 
-                            className={`p-4 rounded-xl transition-all duration-300 
-                              ${selectedGiveaway && selectedGiveaway.id === giveaway.id 
+                        {userGiveaways.map((giveaway) => (
+                          <div
+                            key={giveaway.id}
+                            className={`p-4 rounded-xl transition-all duration-300
+                              ${selectedGiveaway && selectedGiveaway.id === giveaway.id
                                 ? 'bg-gradient-to-r from-maroon-100 to-pink-100 border-l-4 border-maroon-500'
                                 : 'bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100'
                               }
@@ -346,8 +349,8 @@ export const DashboardPage: React.FC = () => {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleDrawWinner(selectedGiveaway.id)} 
-                            loading={loadingWinnerDraw} 
+                            onClick={() => handleDrawWinner(selectedGiveaway.id)}
+                            loading={loadingWinnerDraw}
                             className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
                           >
                             <Trophy className="w-4 h-4 mr-2" />
@@ -357,21 +360,21 @@ export const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {loadingParticipants ? ( 
+                      {loadingParticipants ? (
                         <div className="flex justify-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-700"></div>
                         </div>
                       ) : (
                         <>
                           {/* Winners Section */}
-                          {drawnWinners.length > 0 && ( 
+                          {drawnWinners.length > 0 && (
                             <div className="mb-8">
                               <h3 className="text-xl font-bold text-maroon-800 mb-4 flex items-center">
                                 <Award className="w-5 h-5 mr-2 text-pink-600" />
                                 Winners
                               </h3>
                               <div className="space-y-3">
-                                {drawnWinners.map((winner, idx) => ( 
+                                {drawnWinners.map((winner, idx) => (
                                   <div key={winner.winnerRecord?.id || idx} className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
                                     <div className="flex items-center space-x-3">
                                       <div className="bg-gradient-to-br from-amber-500 to-yellow-500 p-2 rounded-full">
@@ -379,7 +382,7 @@ export const DashboardPage: React.FC = () => {
                                       </div>
                                       <div className="flex-1">
                                         <h4 className="font-semibold text-amber-800">
-                                          {winner.profiles?.username || 'Anonymous'} 
+                                          {winner.profiles?.username || 'Anonymous'}
                                           <span className="text-sm font-normal ml-2 text-amber-700">
                                             (Prize: {winner.prize?.name || 'Unknown'})
                                           </span>
@@ -544,8 +547,8 @@ export const DashboardPage: React.FC = () => {
                                 </div>
                                 <Button
                                     type="button"
-                                    onClick={(event) => { // Use onClick with stopPropagation
-                                        event.stopPropagation(); // Prevent parent click handlers if any
+                                    onClick={(event) => {
+                                        event.stopPropagation();
                                         handleEnterGiveaway(giveaway);
                                     }}
                                     // Consider a loading state per button for clarity
