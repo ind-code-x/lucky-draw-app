@@ -49,7 +49,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
   const [allowDuplicateUsers, setAllowDuplicateUsers] = useState(false);
   const [includeReplies, setIncludeReplies] = useState(true);
   const [filterSpam, setFilterSpam] = useState(true);
-  const [maxComments, setMaxComments] = useState(1000);
+  const [maxComments, setMaxComments] = useState(2000);
   const [isLoading, setIsLoading] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -125,7 +125,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
 
       // Step 3: Get Instagram media to find the post
       const mediaResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${instagramAccountId}/media?fields=id,media_url,permalink,timestamp&limit=50&access_token=${pageAccessToken || accessToken}`
+        `https://graph.facebook.com/v19.0/${instagramAccountId}/media?fields=id,media_url,permalink,timestamp&limit=2000&access_token=${pageAccessToken || accessToken}`
       );
 
       if (!mediaResponse.ok) {
@@ -152,7 +152,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
 
       // Step 4: Get comments for the post
       const commentsResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${targetPost.id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=100&access_token=${pageAccessToken || accessToken}`
+        `https://graph.facebook.com/v19.0/${targetPost.id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=2000&access_token=${pageAccessToken || accessToken}`
       );
 
       if (!commentsResponse.ok) {
