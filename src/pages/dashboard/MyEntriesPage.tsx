@@ -1,7 +1,7 @@
 // MyEntriesPage.tsx
 
 import React, { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom'; // Ensure Link is imported
 import { 
   Trophy, 
   Calendar, 
@@ -35,6 +35,7 @@ export const MyEntriesPage: React.FC = () => {
           setMyEntries(entriesData);
         } catch (error) {
           console.error('Error loading my entries:', error);
+          // Optionally show a toast error
         } finally {
           setLoading(false);
         }
@@ -176,72 +177,82 @@ export const MyEntriesPage: React.FC = () => {
                 {activeEntries.length > 0 ? (
                   <div className="space-y-6">
                     {activeEntries.map((entry) => (
-                      <div key={entry.id} className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 hover:from-pink-100 hover:to-rose-100 transition-all duration-300">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                          <div className="flex items-start space-x-4 mb-4 lg:mb-0">
-                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-maroon-500 to-pink-500 flex items-center justify-center">
-                              {entry.giveaway.banner_url ? (
-                                <img
-                                  src={entry.giveaway.banner_url}
-                                  alt={entry.giveaway.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Gift className="w-8 h-8 text-white" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="text-lg font-bold text-maroon-800 mb-2">{entry.giveaway.title}</h3>
-                              <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                                <span className="flex items-center">
-                                  <Users className="w-4 h-4 mr-1" />
-                                  by {entry.giveaway.organizer?.username || 'Unknown'}
-                                </span>
-                                <span className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-1" />
-                                  Ends {new Date(entry.giveaway.end_time).toLocaleDateString()}
-                                </span>
+                      // Add a conditional check here for entry.giveaway AND entry.giveaway.slug
+                      // If either is missing, render a fallback or skip the entry.
+                      <React.Fragment key={entry.id}> {/* Use React.Fragment to avoid extra div if skipping */}
+                        {entry.giveaway && entry.giveaway.slug ? (
+                          <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 hover:from-pink-100 hover:to-rose-100 transition-all duration-300">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                              <div className="flex items-start space-x-4 mb-4 lg:mb-0">
+                                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-maroon-500 to-pink-500 flex items-center justify-center">
+                                  {entry.giveaway.banner_url ? (
+                                    <img
+                                      src={entry.giveaway.banner_url}
+                                      alt={entry.giveaway.title || 'Giveaway'}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Gift className="w-8 h-8 text-white" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-bold text-maroon-800 mb-2">{entry.giveaway.title || 'Untitled Giveaway'}</h3>
+                                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                                    <span className="flex items-center">
+                                      <Users className="w-4 h-4 mr-1" />
+                                      by {entry.giveaway.organizer?.username || 'Unknown'}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Calendar className="w-4 h-4 mr-1" />
+                                      Ends {new Date(entry.giveaway.end_time).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(entry.status)}`}>
+                                      {entry.status === 'active' ? 'Active' : 'Ended'}
+                                    </span>
+                                    <span className="text-sm text-gray-600">
+                                      Joined {new Date(entry.joined_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(entry.status)}`}>
-                                  {entry.status === 'active' ? 'Active' : 'Ended'}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                  Joined {new Date(entry.joined_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col lg:items-end space-y-3">
-                            <div className="text-center lg:text-right">
-                              <div className="text-2xl font-bold text-maroon-800">{entry.entries}</div>
-                              <div className="text-sm text-gray-600">entries</div>
-                            </div>
-                            
-                            <div className="flex flex-wrap gap-2">
-                              {/* Adapt this to use your entry.giveaway.entry_config for methods */}
-                              {Object.keys(entry.giveaway.entry_config || {}).map((methodType) => (
-                                <span
-                                  key={methodType}
-                                  className="inline-flex items-center px-2 py-1 rounded-lg bg-white text-xs font-medium text-maroon-700 border border-pink-200"
+                              
+                              <div className="flex flex-col lg:items-end space-y-3">
+                                <div className="text-center lg:text-right">
+                                  <div className="text-2xl font-bold text-maroon-800">{entry.entries}</div>
+                                  <div className="text-sm text-gray-600">entries</div>
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-2">
+                                  {Object.keys(entry.giveaway.entry_config || {}).map((methodType) => (
+                                    <span
+                                      key={methodType}
+                                      className="inline-flex items-center px-2 py-1 rounded-lg bg-white text-xs font-medium text-maroon-700 border border-pink-200"
+                                    >
+                                      <span className="mr-1">{getMethodIcon(methodType)}</span>
+                                      {methodType.replace(/_/g, ' ')}
+                                    </span>
+                                  ))}
+                                </div>
+                                
+                                <Button
+                                  size="sm"
+                                  className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
+                                  as={Link} to={`/giveaway/${entry.giveaway.slug}`} 
                                 >
-                                  <span className="mr-1">{getMethodIcon(methodType)}</span>
-                                  {methodType.replace('_', ' ')}
-                                </span>
-                              ))}
+                                  View Giveaway
+                                </Button>
+                              </div>
                             </div>
-                            
-                            <Button
-                              size="sm"
-                              className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
-                              as={Link} to={`/giveaway/${entry.giveaway.slug}`} // Link to individual giveaway page
-                            >
-                              View Giveaway
-                            </Button>
                           </div>
-                        </div>
-                      </div>
+                        ) : (
+                          // Fallback if giveaway data or slug is missing for this entry
+                          <div key={entry.id} className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+                            Error: Missing giveaway details for this entry (ID: {entry.giveaway_id}).
+                          </div>
+                        )}
+                      </React.Fragment>
                     ))}
                   </div>
                 ) : (
@@ -256,7 +267,7 @@ export const MyEntriesPage: React.FC = () => {
                     </p>
                     <Button
                       as={Link}
-                      to="/" // Link to the main explore giveaways page
+                      to="/" 
                       size="lg"
                       icon={Sparkles}
                       className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
@@ -280,45 +291,54 @@ export const MyEntriesPage: React.FC = () => {
                 <CardContent>
                   <div className="space-y-4">
                     {endedEntries.map((entry) => (
-                      <div key={entry.id} className="bg-gradient-to-r from-gray-50 to-pink-50 rounded-xl p-4 hover:from-gray-100 hover:to-pink-100 transition-all duration-300">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
-                              {entry.giveaway.banner_url ? (
-                                <img
-                                  src={entry.giveaway.banner_url}
-                                  alt={entry.giveaway.title}
-                                  className="w-full h-full object-cover opacity-75"
-                                />
-                              ) : (
-                                <Gift className="w-6 h-6 text-white" />
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-maroon-800">{entry.giveaway.title}</h4>
-                              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                                <span>{entry.entries} entries</span>
-                                <span>•</span>
-                                <span>by {entry.giveaway.organizer?.username || 'Unknown'}</span>
+                      <React.Fragment key={entry.id}> {/* Use React.Fragment */}
+                        {entry.giveaway && entry.giveaway.slug ? (
+                          <div className="bg-gradient-to-r from-gray-50 to-pink-50 rounded-xl p-4 hover:from-gray-100 hover:to-pink-100 transition-all duration-300">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
+                                  {entry.giveaway.banner_url ? (
+                                    <img
+                                      src={entry.giveaway.banner_url}
+                                      alt={entry.giveaway.title || 'Giveaway'}
+                                      className="w-full h-full object-cover opacity-75"
+                                    />
+                                  ) : (
+                                    <Gift className="w-6 h-6 text-white" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-maroon-800">{entry.giveaway.title || 'Untitled Giveaway'}</h4>
+                                  <div className="flex items-center space-x-3 text-sm text-gray-600">
+                                    <span>{entry.entries} entries</span>
+                                    <span>•</span>
+                                    <span>by {entry.giveaway.organizer?.username || 'Unknown'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center space-x-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(entry.status)}`}>
+                                  Ended
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-gray-600 hover:text-maroon-600 hover:bg-pink-50"
+                                  as={Link} to={`/giveaway/${entry.giveaway.slug}`} 
+                                >
+                                  View Results
+                                </Button>
                               </div>
                             </div>
                           </div>
-                          
-                          <div className="flex items-center space-x-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(entry.status)}`}>
-                              Ended
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-gray-600 hover:text-maroon-600 hover:bg-pink-50"
-                              as={Link} to={`/giveaway/${entry.giveaway.slug}`} // Link to individual giveaway page
-                            >
-                              View Results
-                            </Button>
+                        ) : (
+                          // Fallback if giveaway data or slug is missing for this entry
+                          <div key={entry.id} className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+                            Error: Missing giveaway details for this entry (ID: {entry.giveaway_id}).
                           </div>
-                        </div>
-                      </div>
+                        )}
+                      </React.Fragment>
                     ))}
                   </div>
                 </CardContent>
