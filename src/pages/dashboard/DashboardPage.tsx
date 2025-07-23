@@ -27,7 +27,7 @@ import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
   const { user, profile, isSubscribed } = useAuthStore();
-  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter } = useGiveawayStore();
+  const { giveaways, fetchGiveaways, fetchParticipants, selectRandomWinner, statusFilter, setStatusFilter, addParticipant } = useGiveawayStore(); 
 
   const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
