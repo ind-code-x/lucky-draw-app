@@ -164,7 +164,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
     const fileExt = file.name.split('.').pop();
     const filePath = `${user?.id}/${Date.now()}.${fileExt}`;
-    const bucketName = 'giveaway-banners';
+    const bucketName = 'giveaway-assets';
 
     try {
       const { data, error } = await supabase.storage
