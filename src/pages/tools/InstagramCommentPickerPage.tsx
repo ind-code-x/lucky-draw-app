@@ -111,15 +111,13 @@ export const InstagramCommentPickerPage: React.FC = () => {
       // Find the first page that has an Instagram Business Account attached
       for (const page of pagesData.data) {
         try {
-          const igResponse = await fetch(
-            `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token}` // Use page.id and page.access_token
-          );
+          const igResponse = await fetch(`https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`);
           
           if (igResponse.ok) {
             const igData = await igResponse.json();
             if (igData.instagram_business_account) {
               instagramAccountId = igData.instagram_business_account.id;
-              pageAccessToken = page.access_token; // Use the Page Access Token for further API calls
+              pageAccessToken = page.access_token;
               break;
             }
           }
@@ -139,9 +137,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
       }
 
       // Fetch specific media item by permalink or shortcode
-      const mediaItemResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${instagramAccountId}?fields=media{permalink,shortcode,id}&access_token=${pageAccessToken}` // Query media from the IG account, not just /media edge
-      );
+      const mediaItemResponse = await fetch(`https://graph.facebook.com/v19.0/${instagramAccountId}?fields=media{permalink,shortcode,id}&access_token=${pageAccessToken}`);
       if (!mediaItemResponse.ok) {
           const error = await mediaItemResponse.json();
           throw new Error(error.error?.message || 'Failed to fetch Instagram media items from your account.');
@@ -177,7 +173,7 @@ export const InstagramCommentPickerPage: React.FC = () => {
         const processedPageComments = (currentCommentsData.data || []).flatMap((comment: any) => {
             const baseComment: Comment = {
                 id: comment.id,
-                username: comment.from?.username || comment.username || 'Unknown User', // Use 'from.username' for Graph API v5.0+
+                username: comment.from?.username || comment.username || 'Unknown User',
                 text: comment.text,
                 timestamp: comment.timestamp,
                 like_count: comment.like_count,
