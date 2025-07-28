@@ -1,16 +1,21 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Filter, Trophy, Users, Zap, Shield, Sparkles, Heart } from 'lucide-react';
+// HomePage.tsx
+
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { Search, Filter, Trophy, Users, Zap, Shield, Sparkles, Heart, Clock, AlertCircle, Loader2 } from 'lucide-react'; // Added Clock, AlertCircle, Loader2
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { GiveawayCard } from '../components/giveaway/GiveawayCard';
+import { GiveawayCard } from '../components/giveaway/GiveawayCard'; // Assuming GiveawayCard is a separate component
 import { useGiveawayStore } from '../stores/giveawayStore';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 
 export const HomePage: React.FC = () => {
-  const { giveaways, loading, searchQuery, statusFilter, fetchGiveaways, setSearchQuery, setStatusFilter } = useGiveawayStore();
-  const { user, isSubscribed } = useAuthStore();
+  const { giveaways, loading, searchQuery, statusFilter, fetchGiveaways, setSearchQuery, setStatusFilter, addParticipant } = useGiveawayStore(); // Added addParticipant
+  const { user, isSubscribed, profile } = useAuthStore(); // Added profile
+
+  const navigate = useNavigate();
+  const [loadingEnterGiveaway, setLoadingEnterGiveaway] = useState<Record<string, boolean>>({}); // Loading state per giveaway button
 
   useEffect(() => {
     fetchGiveaways();
@@ -33,22 +38,47 @@ export const HomePage: React.FC = () => {
     }
   };
   
-  const handleGiveawayClick = (giveaway) => {
-    if (!user) {
-      toast.error('Please sign in to participate in giveaways');
-      return;
-    }
-    
-    if (!isSubscribed) {
-      toast.error('You need to be subscribed to participate in giveaways');
-      // Redirect to subscription page
-      window.location.href = '/subscription';
-      return;
-    }
-    
-    // If user is logged in and subscribed, proceed to giveaway
-    alert(`Entering giveaway: ${giveaway.title}`);
+  // New handler for participating in a giveaway (for participant role)
+  const handleEnterGiveaway = async (event: React.MouseEvent, giveaway: any) => {
+      event.stopPropagation(); // Prevent Link/Card click from firing
+      if (!user) {
+          toast.error("Please sign in to participate in giveaways.");
+          navigate('/auth/login'); 
+          return;
+      }
+      // Check if the user is a participant role and needs subscription
+      if (profile?.role === 'participant' && !isSubscribed) { 
+          toast.error("You must have an active subscription to enter this giveaway.");
+          navigate('/pricing'); // Redirect to pricing page
+          return;
+      }
+
+      setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: true }));
+      try {
+          await addParticipant(giveaway.id, user.id);
+          toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
+          await fetchGiveaways(); // Refetch to update entry count
+      } catch (error) {
+          console.error('handleEnterGiveaway: Error adding participant:', error);
+          if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+              toast.error('You have already entered this giveaway.'); 
+          } else {
+              toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
+          }
+      } finally {
+          setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: false }));
+      }
   };
+
+  // New handler for viewing results (for ended giveaways)
+  const handleViewResults = (event: React.MouseEvent, giveawaySlug: string) => {
+      event.stopPropagation(); // Prevent Link/Card click from firing
+      navigate(`/giveaway/${giveawaySlug}/results`); 
+  };
+
+  // Old handleGiveawayClick is repurposed or replaced directly in JSX
+  // const handleGiveawayClick = (giveaway) => { ... }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
@@ -197,9 +227,44 @@ export const HomePage: React.FC = () => {
           ) : filteredGiveaways.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredGiveaways.map((giveaway) => (
-                <div key={giveaway.id} onClick={() => handleGiveawayClick(giveaway)}>
-                  <GiveawayCard giveaway={giveaway} />
-                </div>
+                // Changed this div to Link to make the whole card clickable for viewing details
+                <Link to={`/giveaway/${giveaway.slug}`} key={giveaway.id} className="block">
+                  <GiveawayCard giveaway={giveaway}> {/* Pass giveaway to card */}
+                      {/* Pass specific buttons as children or props to GiveawayCard */}
+                      <div className="flex flex-col space-y-2 mt-4">
+                          {giveaway.status === 'active' && giveaway.slug ? (
+                              <Button
+                                  type="button"
+                                  onClick={(event) => { // Use onClick with stopPropagation
+                                      event.stopPropagation(); // Prevents Link's default navigation
+                                      handleEnterGiveaway(event, giveaway);
+                                  }}
+                                  loading={loadingEnterGiveaway[giveaway.id]}
+                                  icon={Heart}
+                                  className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 w-full"
+                              >
+                                  Enter Giveaway
+                              </Button>
+                          ) : (
+                              // If giveaway is ended, show "View Results"
+                              giveaway.slug && ( // Ensure slug exists before linking
+                                  <Button
+                                      type="button"
+                                      onClick={(event) => {
+                                          event.stopPropagation(); // Prevents Link's default navigation
+                                          handleViewResults(event, giveaway.slug);
+                                      }}
+                                      icon={Trophy} // Use Trophy icon for View Results
+                                      variant="outline"
+                                      className="w-full border-maroon-600 text-maroon-600 hover:bg-maroon-50"
+                                  >
+                                      View Results
+                                  </Button>
+                              )
+                          )}
+                      </div>
+                  </GiveawayCard>
+                </Link>
               ))}
             </div>
           ) : (
@@ -218,7 +283,7 @@ export const HomePage: React.FC = () => {
                   className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Create Your First Giveaway
+                  Start Your Journey
                 </Button>
               </div>
             </div>
