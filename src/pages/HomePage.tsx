@@ -11,20 +11,16 @@ import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 
 export const HomePage: React.FC = () => {
-  // Destructure all necessary states and functions from stores
-  const { giveaways, loading, searchQuery, statusFilter, fetchGiveaways, setSearchQuery, setStatusFilter, addParticipant } = useGiveawayStore(); // Added addParticipant
-  const { user, isSubscribed, profile } = useAuthStore(); // Added profile, isSubscribed
+  const { giveaways, loading, searchQuery, statusFilter, fetchGiveaways, setSearchQuery, setStatusFilter, addParticipant } = useGiveawayStore();
+  const { user, isSubscribed, profile } = useAuthStore();
 
   const navigate = useNavigate();
-  // Use a map for loading state per giveaway ID for 'Enter Giveaway' buttons
   const [loadingEnterGiveaway, setLoadingEnterGiveaway] = useState<Record<string, boolean>>({}); 
 
-  // Fetch giveaways on component mount
   useEffect(() => {
     fetchGiveaways();
   }, [fetchGiveaways]);
 
-  // Filter giveaways based on search query and status filter
   const filteredGiveaways = giveaways.filter(giveaway => {
     const matchesSearch = searchQuery === '' || 
       giveaway.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -35,7 +31,6 @@ export const HomePage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Scroll to Giveaways section when "Explore Giveaways" button is clicked
   const scrollToGiveaways = () => {
     const element = document.getElementById('giveaways');
     if (element) {
@@ -43,43 +38,39 @@ export const HomePage: React.FC = () => {
     }
   };
   
-  // Handler for participating in a giveaway (for participant role)
   const handleEnterGiveaway = async (event: React.MouseEvent, giveaway: any) => {
-      event.stopPropagation(); // Prevents the parent Link/Card click from firing
+      event.stopPropagation(); 
       if (!user) {
           toast.error("Please sign in to participate in giveaways.");
           navigate('/auth/login'); 
           return;
       }
-      // Check if the user is a participant role and needs subscription (if applicable)
-      // This condition assumes 'isSubscribed' comes from useAuthStore and applies to participant role.
       if (profile?.role === 'participant' && !isSubscribed) { 
           toast.error("You must have an active subscription to enter this giveaway.");
-          navigate('/pricing'); // Redirect to pricing page
+          navigate('/pricing'); 
           return;
       }
 
-      setLoadingParticipants(true);
+      setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: true }));
       try {
           await addParticipant(giveaway.id, user.id);
           toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
-          await fetchGiveaways();
+          await fetchGiveaways(); 
       } catch (error) {
           console.error('handleEnterGiveaway: Error adding participant:', error);
           if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-              toast.error('You have already entered this giveaway.');
+              toast.error('You have already entered this giveaway.'); 
           } else {
               toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
           }
       } finally {
-          setLoadingParticipants(false);
+          setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: false }));
       }
   };
 
-  // Handler for viewing results (for ended giveaways)
   const handleViewResults = (event: React.MouseEvent, giveawaySlug: string) => {
-      event.stopPropagation(); // Prevents the parent Link/Card click from firing
-      navigate(`/giveaway/${giveawaySlug}/results`); // Navigate to the results page for the specific giveaway
+      event.stopPropagation(); 
+      navigate(`/giveaway/${giveawaySlug}/results`); 
   };
 
   return (
@@ -232,7 +223,7 @@ export const HomePage: React.FC = () => {
                 // Changed this div to Link to make the whole card clickable for viewing details
                 // Added a guard for giveaway.slug here.
                 giveaway.slug ? ( // Only render Link if slug exists
-                    <Link to={`/giveaway/${giveaway.slug}`} key={giveaway.id} className="block">
+                    <Link to={`/giveaway/${giveaway.id}`} key={giveaway.id} className="block"> {/* Changed to giveaway.id */}
                       <GiveawayCard giveaway={giveaway}> {/* Pass giveaway to card */}
                           {/* Pass specific buttons as children or props to GiveawayCard */}
                           <div className="flex flex-col space-y-2 mt-4">
@@ -255,7 +246,8 @@ export const HomePage: React.FC = () => {
                                       type="button"
                                       onClick={(event) => {
                                           event.stopPropagation(); // Prevents Link's default navigation
-                                          handleViewResults(event, giveaway.slug);
+                                          // Changed handleViewResults to use giveaway.id
+                                          handleViewResults(event, giveaway.id); 
                                       }}
                                       icon={Trophy} // Use Trophy icon for View Results
                                       variant="outline"
