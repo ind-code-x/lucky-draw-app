@@ -59,20 +59,20 @@ export const HomePage: React.FC = () => {
           return;
       }
 
-      setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: true })); // Set loading state for this specific button
+      setLoadingParticipants(true);
       try {
-          await addParticipant(giveaway.id, user.id); // Call addParticipant from useGiveawayStore
+          await addParticipant(giveaway.id, user.id);
           toast.success(`You have successfully entered "${giveaway.title}"! Good luck!`);
-          await fetchGiveaways(); // Refetch giveaways to update total entries count on the cards
+          await fetchGiveaways();
       } catch (error) {
           console.error('handleEnterGiveaway: Error adding participant:', error);
           if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-              toast.error('You have already entered this giveaway.'); // Specific error for unique constraint
+              toast.error('You have already entered this giveaway.');
           } else {
               toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
           }
       } finally {
-          setLoadingEnterGiveaway(prev => ({ ...prev, [giveaway.id]: false })); // Reset loading state
+          setLoadingParticipants(false);
       }
   };
 
