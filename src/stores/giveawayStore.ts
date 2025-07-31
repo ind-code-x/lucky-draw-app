@@ -1,7 +1,7 @@
 // giveawayStore.ts
 
 import { create } from 'zustand';
-import { supabase, Giveaway, Prize, Profile, Participant, Winner } from '../lib/supabase';
+import { supabase, Giveaway, Prize, Profile, Participant, Winner } from '../lib/supabase'; 
 
 interface GiveawayState {
   giveaways: Giveaway[];
@@ -10,13 +10,14 @@ interface GiveawayState {
   searchQuery: string;
   statusFilter: string;
   fetchGiveaways: () => Promise<void>;
-  fetchGiveaway: (slug: string) => Promise<void>;
-  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>;
+  // CHANGE: fetchGiveaway now takes ID, not slug
+  fetchGiveaway: (giveawayId: string) => Promise<void>; 
+  createGiveaway: (giveaway: Partial<Giveaway>, prizes: Partial<Prize>[]) => Promise<string>; 
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: string) => void;
   addParticipant: (giveawayId: string, userId: string) => Promise<void>;
   fetchParticipants: (giveawayId: string) => Promise<Participant[]>;
-  fetchMyEntries: (userId: string) => Promise<any[]>;
+  fetchMyEntries: (userId: string) => Promise<any[]>; 
   selectRandomWinner: (giveawayId: string, prizeId: string) => Promise<{ winner: Participant, winnerRecord: Winner }>;
 }
 
@@ -94,25 +95,27 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
     }
   },
 
-  fetchGiveaway: async (slug: string) => {
+  // MODIFIED: fetchGiveaway now takes ID, not slug
+  fetchGiveaway: async (giveawayId: string) => { // Changed parameter name
     set({ loading: true });
     try {
       const { data, error } = await supabase
         .from('giveaways')
         .select(`*, profiles(*), prizes(*)`) 
-        .eq('slug', slug)
+        .eq('id', giveawayId) // <--- CRITICAL CHANGE: Query by ID
         .single();
 
       if (error) {
-        console.error('fetchGiveaway: Supabase error details (first attempt):', error);
+        console.error(`fetchGiveaway: Supabase error details (ID "${giveawayId}"):`, error);
+        // Fallback logic (originally for slug, but adapted for ID issues if needed)
         const { data: basicData, error: basicError } = await supabase
           .from('giveaways')
           .select('*')
-          .eq('slug', slug)
+          .eq('id', giveawayId) // Still using ID for fallback
           .single();
 
         if (basicError) {
-          console.error('fetchGiveaway: Supabase error details (fallback):', basicError);
+          console.error(`fetchGiveaway: Supabase error details (ID fallback for "${giveawayId}"):`, basicError);
           throw basicError;
         }
 
@@ -282,7 +285,6 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
   },
 
   fetchParticipants: async (giveawayId: string) => {
-    console.log(`fetchParticipants: Fetching participants for giveaway ${giveawayId}`); 
     try {
       const { data: participantsData, error: participantsError } = await supabase
         .from('participants')
@@ -296,14 +298,13 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           created_at
         `) 
         .eq('giveaway_id', giveawayId);
-
+        
       if (participantsError) {
         console.error('fetchParticipants: Supabase error details for participants data:', participantsError); 
         throw participantsError;
       }
 
       if (!participantsData || participantsData.length === 0) {
-        console.log('fetchParticipants: No participants found for this giveaway.');
         return [];
       }
 
@@ -313,8 +314,8 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
       if (userIds.length > 0) {
           const { data: fetchedProfiles, error: profilesError } = await supabase
               .from('profiles')
-              .select(`id, username, email, avatar_url`)
-              .in('id', userIds);
+              .select(`id, username, email, avatar_url`) 
+              .in('id', userIds); 
 
           if (profilesError) {
               console.error('fetchParticipants: Error fetching profiles for participants:', profilesError);
@@ -327,11 +328,10 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
           const profile = profilesData.find(prof => prof.id === participant.user_id);
           return {
               ...participant,
-              profiles: profile || null
+              profiles: profile || null 
           };
       });
-
-      console.log('fetchParticipants: Data loaded and combined with profiles.', combinedParticipants); 
+      
       return combinedParticipants;
 
     } catch (error) {
@@ -361,7 +361,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
             end_time,
             status,
             organizer_id,
-            profiles(
+            profiles( 
               username,
               email
             ),
