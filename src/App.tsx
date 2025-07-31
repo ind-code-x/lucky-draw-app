@@ -24,7 +24,7 @@ import { TermsPage } from './pages/TermsPage';
 import { ToolsIndexPage } from './pages/tools/ToolsIndexPage';
 import { InstagramCommentPickerPage } from './pages/tools/InstagramCommentPickerPage';
 import { GiveawayPage } from './pages/GiveawayPage'; // <--- IMPORT THE NEW GIVEAWAY DETAIL PAGE COMPONENT
-import { PricingPage } from './pages/PricingPage'; // Assuming this is your PricingPage (named as SubscriptionPage in routes)
+import { PricingPage } from './pages/SubscriptionPage'; // Assuming this is your PricingPage (named as SubscriptionPage in routes)
 
 import { useAuthStore } from './stores/authStore';
 
@@ -54,7 +54,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/how-it-works" element={<HowItWorksPage />} />
               {/* Correcting route for Pricing Page if it's named SubscriptionPage */}
-              <Route path="/pricing" element={<PricingPage />} /> {/* Ensure this matches your component file name if different */}
+              <Route path="/pricing" element={<SubscriptionPage />} /> {/* Ensure this matches your component file name if different */}
               <Route path="/subscription" element={<SubscriptionPage />} /> {/* Keep if separate from pricing */}
               <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
               <Route path="/subscription/failure" element={<SubscriptionFailurePage />} />
