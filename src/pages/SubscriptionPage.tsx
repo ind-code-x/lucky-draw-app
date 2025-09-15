@@ -36,41 +36,86 @@ export const SubscriptionPage: React.FC = () => {
   const { user, profile } = useAuthStore();
   const [loading, setLoading] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [selectedRole, setSelectedRole] = useState<'participant' | 'organizer'>(profile?.role || 'participant');
 
-  const plans: SubscriptionPlan[] = [
+  const participantPlans: SubscriptionPlan[] = [
     {
-      id: 'starter',
-      name: 'Starter',
-      price: billingCycle === 'monthly' ? 1499 : 14990,
+      id: 'participant-basic',
+      name: 'Basic Participant',
+      price: billingCycle === 'monthly' ? 299 : 2990,
+      period: billingCycle === 'monthly' ? 'month' : 'year',
+      description: 'Perfect for casual giveaway enthusiasts who want to participate regularly',
+      features: [
+        'Enter unlimited giveaways',
+        'Track your entries and wins',
+        'Basic entry methods',
+        'Email support',
+        'Entry history tracking',
+        'Win notifications'
+      ],
+      color: 'from-pink-500 to-rose-500',
+      bgColor: 'from-pink-50 to-rose-50',
+      icon: Heart
+    },
+    {
+      id: 'participant-premium',
+      name: 'Premium Participant',
+      price: billingCycle === 'monthly' ? 599 : 5990,
+      period: billingCycle === 'monthly' ? 'month' : 'year',
+      description: 'For serious participants who want maximum winning potential',
+      features: [
+        'Everything in Basic',
+        'Priority entry processing',
+        'Advanced referral system',
+        'Bonus entry multipliers',
+        'Early access to new giveaways',
+        'Detailed win analytics',
+        'Priority email & chat support',
+        'Exclusive participant-only giveaways'
+      ],
+      popular: true,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'from-purple-50 to-pink-50',
+      icon: Crown
+    }
+  ];
+
+  const organizerPlans: SubscriptionPlan[] = [
+    {
+      id: 'organizer-starter',
+      name: 'Starter Organizer',
+      price: billingCycle === 'monthly' ? 1999 : 19990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'Perfect for small creators and businesses starting their giveaway journey',
       features: [
         'Up to 5 active giveaways',
         'Up to 1,000 participants per giveaway',
         'Basic analytics dashboard',
-        'Email support',
         'Standard entry methods',
-        'Winner selection tools'
+        'Winner selection tools',
+        'Email support',
+        'Basic social media integrations'
       ],
-      color: 'from-pink-500 to-rose-500',
-      bgColor: 'from-pink-50 to-rose-50',
+      color: 'from-blue-500 to-indigo-500',
+      bgColor: 'from-blue-50 to-indigo-50',
       icon: Gift
     },
     {
-      id: 'professional',
-      name: 'Professional',
-      price: billingCycle === 'monthly' ? 3999 : 39990,
+      id: 'organizer-professional',
+      name: 'Professional Organizer',
+      price: billingCycle === 'monthly' ? 4999 : 49990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'Ideal for growing brands and influencers who want advanced features',
       features: [
         'Up to 25 active giveaways',
         'Up to 10,000 participants per giveaway',
         'Advanced analytics & insights',
-        'Priority email & chat support',
         'Custom entry methods',
         'Automated winner management',
         'Social media integrations',
-        'Custom branding options'
+        'Custom branding options',
+        'Priority email & chat support',
+        'CSV export functionality'
       ],
       popular: true,
       color: 'from-maroon-500 to-pink-500',
@@ -78,28 +123,31 @@ export const SubscriptionPage: React.FC = () => {
       icon: Crown
     },
     {
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: billingCycle === 'monthly' ? 7999 : 79990,
+      id: 'organizer-enterprise',
+      name: 'Enterprise Organizer',
+      price: billingCycle === 'monthly' ? 9999 : 99990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'For large organizations requiring unlimited scale and premium support',
       features: [
         'Unlimited active giveaways',
         'Unlimited participants',
         'Advanced analytics & reporting',
-        '24/7 priority support',
         'API access',
         'White-label solutions',
-        'Dedicated account manager',
         'Custom integrations',
         'Advanced security features',
-        'Multi-team collaboration'
+        'Multi-team collaboration',
+        '24/7 priority support',
+        'Dedicated account manager',
+        'Custom development support'
       ],
       color: 'from-rose-500 to-maroon-500',
       bgColor: 'from-rose-50 to-maroon-50',
       icon: Star
     }
   ];
+
+  const currentPlans = selectedRole === 'participant' ? participantPlans : organizerPlans;
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -116,7 +164,7 @@ export const SubscriptionPage: React.FC = () => {
       localStorage.setItem(`${user.id}_subscribed`, 'true');
       localStorage.setItem(`${user.id}_subscription_plan`, billingCycle);
       localStorage.setItem(`${user.id}_subscription_date`, new Date().toISOString());
-      localStorage.setItem(`${user.id}_subscription_plan_name`, plans.find(p => p.id === planId)?.name || '');
+      localStorage.setItem(`${user.id}_subscription_plan_name`, currentPlans.find(p => p.id === planId)?.name || '');
       
       // Try to also update the database if the table exists
       try {
@@ -149,7 +197,7 @@ export const SubscriptionPage: React.FC = () => {
       await useAuthStore.getState().checkSubscription();
       
       // Show success message and redirect
-      toast.success(`You are now subscribed to the ${plans.find(p => p.id === planId)?.name} plan! 🎉`);
+      toast.success(`You are now subscribed to the ${currentPlans.find(p => p.id === planId)?.name} plan! 🎉`);
       // Use window.location for compatibility with the rest of the app's navigation
       window.location.href = '/dashboard';
 
@@ -177,9 +225,37 @@ export const SubscriptionPage: React.FC = () => {
           </h1>
           
           <p className="text-xl md:text-2xl text-pink-100 mb-10 max-w-4xl mx-auto leading-relaxed">
-            Unlock the full potential of magical giveaways with our premium plans. 
-            Scale your audience engagement and create unforgettable experiences.
+            Choose the perfect plan for your role. Whether you're here to participate in giveaways 
+            or create magical experiences, we have the right plan for you.
           </p>
+
+          {/* Role Selection */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="bg-white/20 backdrop-blur-sm rounded-full p-1 flex">
+              <button
+                onClick={() => setSelectedRole('participant')}
+                className={`px-8 py-3 rounded-full text-sm font-semibold transition-all duration-300 ${
+                  selectedRole === 'participant'
+                    ? 'bg-white text-maroon-700 shadow-lg'
+                    : 'text-white hover:text-pink-200'
+                }`}
+              >
+                <Heart className="w-4 h-4 mr-2 inline" />
+                Participant Plans
+              </button>
+              <button
+                onClick={() => setSelectedRole('organizer')}
+                className={`px-8 py-3 rounded-full text-sm font-semibold transition-all duration-300 ${
+                  selectedRole === 'organizer'
+                    ? 'bg-white text-maroon-700 shadow-lg'
+                    : 'text-white hover:text-pink-200'
+                }`}
+              >
+                <Gift className="w-4 h-4 mr-2 inline" />
+                Organizer Plans
+              </button>
+            </div>
+          </div>
 
           {/* Billing Toggle */}
           <div className="flex items-center justify-center mb-8">
@@ -215,8 +291,20 @@ export const SubscriptionPage: React.FC = () => {
       {/* Pricing Plans */}
       <section className="py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-4">
+              {selectedRole === 'participant' ? 'Participant Plans' : 'Organizer Plans'}
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              {selectedRole === 'participant' 
+                ? 'Enhance your giveaway participation experience with premium features'
+                : 'Create and manage professional giveaways that engage your audience'
+              }
+            </p>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan) => (
+            {currentPlans.map((plan) => (
               <Card 
                 key={plan.id} 
                 className={`relative overflow-hidden bg-gradient-to-br ${plan.bgColor} border-pink-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
@@ -286,15 +374,39 @@ export const SubscriptionPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-6">
-              Why Choose Premium?
+              {selectedRole === 'participant' ? 'Why Upgrade as a Participant?' : 'Why Choose Premium for Organizers?'}
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Unlock powerful features that help you create more engaging giveaways and grow your audience faster.
+              {selectedRole === 'participant' 
+                ? 'Get more chances to win and access exclusive features that enhance your giveaway experience.'
+                : 'Unlock powerful features that help you create more engaging giveaways and grow your audience faster.'
+              }
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
+            {selectedRole === 'participant' ? [
+              {
+                icon: Heart,
+                title: 'Priority Entries',
+                description: 'Get priority processing for all your giveaway entries'
+              },
+              {
+                icon: Users,
+                title: 'Referral Bonuses',
+                description: 'Earn bonus entries by referring friends to giveaways'
+              },
+              {
+                icon: Trophy,
+                title: 'Exclusive Access',
+                description: 'Access to premium-only giveaways with better prizes'
+              },
+              {
+                icon: BarChart3,
+                title: 'Win Analytics',
+                description: 'Track your winning patterns and optimize your strategy'
+              }
+            ] : [
               {
                 icon: BarChart3,
                 title: 'Advanced Analytics',
@@ -315,7 +427,7 @@ export const SubscriptionPage: React.FC = () => {
                 title: 'Advanced Features',
                 description: 'Custom integrations, API access, and white-label options'
               }
-            ].map((feature) => (
+            ]}.map((feature) => (
               <Card key={feature.title} className="text-center p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
                 <div className="bg-gradient-to-br from-maroon-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <feature.icon className="w-6 h-6 text-white" />
@@ -389,8 +501,10 @@ export const SubscriptionPage: React.FC = () => {
           </h2>
           
           <p className="text-xl text-pink-100 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Join thousands of successful organizers who trust GiveawayHub to engage their audience 
-            and create unforgettable giveaway experiences.
+            {selectedRole === 'participant' 
+              ? 'Join thousands of happy participants who have discovered amazing prizes and magical experiences.'
+              : 'Join thousands of successful organizers who trust GiveawayHub to engage their audience and create unforgettable giveaway experiences.'
+            }
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
@@ -401,7 +515,7 @@ export const SubscriptionPage: React.FC = () => {
               className="bg-white text-maroon-700 hover:bg-pink-50 shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 px-12"
             >
               <Crown className="w-5 h-5 mr-2" />
-              {user ? 'Choose Your Plan' : 'Get Started Today'}
+              {user ? `Choose Your ${selectedRole === 'participant' ? 'Participant' : 'Organizer'} Plan` : 'Get Started Today'}
             </Button>
             <Button
               as={Link}
