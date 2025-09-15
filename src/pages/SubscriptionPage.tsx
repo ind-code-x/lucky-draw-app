@@ -12,7 +12,8 @@ import {
   Gift,
   Star,
   CreditCard,
-  Lock
+  Lock,
+  Heart
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
