@@ -385,7 +385,7 @@ export const SubscriptionPage: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {selectedRole === 'participant' ? [
+            {(selectedRole === 'participant' ? [
               {
                 icon: Heart,
                 title: 'Priority Entries',
@@ -427,7 +427,7 @@ export const SubscriptionPage: React.FC = () => {
                 title: 'Advanced Features',
                 description: 'Custom integrations, API access, and white-label options'
               }
-            ]}.map((feature) => (
+            ]).map((feature) => (
               <Card key={feature.title} className="text-center p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
                 <div className="bg-gradient-to-br from-maroon-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <feature.icon className="w-6 h-6 text-white" />
