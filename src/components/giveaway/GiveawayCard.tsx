@@ -8,9 +8,10 @@ import { useAuthStore } from '../../stores/authStore';
 
 interface GiveawayCardProps {
   giveaway: Giveaway;
+  children?: React.ReactNode;
 }
 
-export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
+export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway, children }) => {
   const isEnded = isAfter(new Date(), new Date(giveaway.end_time));
   const timeLeft = formatDistanceToNow(new Date(giveaway.end_time), { addSuffix: true });
   const { user, isSubscribed } = useAuthStore();
@@ -125,37 +126,7 @@ export const GiveawayCard: React.FC<GiveawayCardProps> = ({ giveaway }) => {
             </div>
           </div>
 
-          <button
-            className={`block w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-              isEnded 
-                ? 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white'
-                : !user || !isSubscribed
-                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white'
-                  : 'bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 text-white'
-            }`}
-          >
-            {isEnded ? (
-              <>
-                <Trophy className="w-4 h-4 inline mr-2" />
-                View Results
-              </>
-            ) : !user ? (
-              <>
-                <Lock className="w-4 h-4 inline mr-2" />
-                Sign In to Enter
-              </>
-            ) : !isSubscribed ? (
-              <>
-                <Lock className="w-4 h-4 inline mr-2" />
-                Subscribe to Enter
-              </>
-            ) : (
-              <>
-                <Heart className="w-4 h-4 inline mr-2" />
-                Enter Giveaway
-              </>
-            )}
-          </button>
+          {children}
         </div>
       </div>
     </Card>

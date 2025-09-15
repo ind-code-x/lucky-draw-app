@@ -235,7 +235,8 @@ export const MyEntriesPage: React.FC = () => {
                             <Button
                               size="sm"
                               className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700"
-                              as={Link} to={`/giveaway/${entry.giveaway.slug}`} // Link to individual giveaway page
+                              as={Link} 
+                              to={`/giveaway/${entry.giveaway.id}`}
                             >
                               View Giveaway
                             </Button>
@@ -312,7 +313,8 @@ export const MyEntriesPage: React.FC = () => {
                               size="sm"
                               variant="ghost"
                               className="text-gray-600 hover:text-maroon-600 hover:bg-pink-50"
-                              as={Link} to={`/giveaway/${entry.giveaway.slug}`} // Link to individual giveaway page
+                              as={Link} 
+                              to={`/giveaway/${entry.giveaway.id}`}
                             >
                               View Results
                             </Button>

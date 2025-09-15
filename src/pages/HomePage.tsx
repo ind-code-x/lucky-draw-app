@@ -76,10 +76,8 @@ export const HomePage: React.FC = () => {
   };
 
   // Handler for viewing results (for ended giveaways)
-  // This will now use giveaway.id instead of giveawaySlug directly
   const handleViewResults = (event: React.MouseEvent, giveawayId: string) => {
       event.stopPropagation(); // Prevents the parent Link/Card click from firing
-      // Assuming a route like /giveaway/:id/results
       navigate(`/giveaway/${giveawayId}/results`);
   };
 
@@ -230,14 +228,11 @@ export const HomePage: React.FC = () => {
           ) : filteredGiveaways.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredGiveaways.map((giveaway) => (
-                // Guard for giveaway.id and giveaway.slug
-                // Link to /giveaway/:id and pass giveaway.slug as state
-                giveaway.id && giveaway.slug ? ( 
+                giveaway.id ? ( 
                     <Link 
                       to={`/giveaway/${giveaway.id}`} 
                       key={giveaway.id} 
                       className="block"
-                      state={{ giveawaySlug: giveaway.slug }} // Pass slug as state
                     >
                       <GiveawayCard giveaway={giveaway}>
                           <div className="flex flex-col space-y-2 mt-4">
@@ -259,7 +254,7 @@ export const HomePage: React.FC = () => {
                                       type="button"
                                       onClick={(event) => {
                                           event.stopPropagation(); 
-                                          handleViewResults(event, giveaway.id); // Pass giveaway.id
+                                          handleViewResults(event, giveaway.id);
                                       }}
                                       icon={Trophy} 
                                       variant="outline"
@@ -271,9 +266,9 @@ export const HomePage: React.FC = () => {
                           </div>
                       </GiveawayCard>
                     </Link>
-                ) : ( // Fallback if id or slug is missing
+                ) : (
                     <div key={giveaway.id || `missing-${Math.random()}`} className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700">
-                        Error: Missing ID or slug for a giveaway. Cannot link.
+                        Error: Missing ID for giveaway. Cannot link.
                     </div>
                 )
               ))}

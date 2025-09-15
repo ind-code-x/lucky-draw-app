@@ -25,6 +25,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { useGiveawayStore } from '../stores/giveawayStore';
 import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const GiveawayPage: React.FC = () => {

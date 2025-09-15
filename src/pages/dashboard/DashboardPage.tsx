@@ -23,6 +23,7 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuthStore } from '../../stores/authStore';
 import { useGiveawayStore } from '../../stores/giveawayStore';
+import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const DashboardPage: React.FC = () => {
@@ -129,7 +130,6 @@ export const DashboardPage: React.FC = () => {
   const handleEnterGiveaway = async (giveaway: any) => {
       if (!user) {
           toast.error("Please sign in to participate in giveaways.");
-          navigate('/auth/login');
           return;
       }
 

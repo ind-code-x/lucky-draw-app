@@ -120,29 +120,25 @@ export const SubscriptionPage: React.FC = () => {
       
       // Try to also update the database if the table exists
       try {
-        // Check if the subscriptions table exists by attempting a query
-        const { error: tableCheckError } = await supabase
+        // Insert subscription into database
+        console.log('Inserting subscription into database');
+        const { error: insertError } = await supabase
           .from('subscriptions')
-          .select('id')
-          .limit(1);
+          .insert({
+            user_id: user.id,
+            status: 'active',
+            subscription_type: billingCycle,
+            price: price / 100, // Convert from paise to rupees for DB
+            current_period_start: new Date().toISOString(),
+            current_period_end: new Date(
+              new Date().setMonth(
+                new Date().getMonth() + (billingCycle === 'monthly' ? 1 : 12)
+              )
+            ).toISOString(),
+          });
           
-        if (!tableCheckError) {
-          // Table exists, insert subscription
-          console.log('Inserting subscription into database');
-          await supabase
-            .from('subscriptions')
-            .insert({
-              user_id: user.id,
-              status: 'active',
-              subscription_type: billingCycle,
-              price: price / 100, // Convert from paise to rupees for DB
-              current_period_start: new Date().toISOString(),
-              current_period_end: new Date(
-                new Date().setMonth(
-                  new Date().getMonth() + (billingCycle === 'monthly' ? 1 : 12)
-                )
-              ).toISOString(),
-            });
+        if (insertError) {
+          console.warn('Database subscription insert failed, using localStorage fallback:', insertError);
         }
       } catch (dbError) {
         console.warn('Error accessing subscriptions table (using localStorage fallback):', dbError);

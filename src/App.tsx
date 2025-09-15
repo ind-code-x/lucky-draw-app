@@ -23,8 +23,7 @@ import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 import { ToolsIndexPage } from './pages/tools/ToolsIndexPage';
 import { InstagramCommentPickerPage } from './pages/tools/InstagramCommentPickerPage';
-import { GiveawayPage } from './pages/GiveawayPage'; // <--- IMPORT THE NEW GIVEAWAY DETAIL PAGE COMPONENT
-import { PricingPage } from './pages/SubscriptionPage'; // Assuming this is your PricingPage (named as SubscriptionPage in routes)
+import { GiveawayPage } from './pages/GiveawayPage';
 
 import { useAuthStore } from './stores/authStore';
 
@@ -53,9 +52,8 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/how-it-works" element={<HowItWorksPage />} />
-              {/* Correcting route for Pricing Page if it's named SubscriptionPage */}
-              <Route path="/pricing" element={<SubscriptionPage />} /> {/* Ensure this matches your component file name if different */}
-              <Route path="/subscription" element={<SubscriptionPage />} /> {/* Keep if separate from pricing */}
+              <Route path="/pricing" element={<SubscriptionPage />} />
+              <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
               <Route path="/subscription/failure" element={<SubscriptionFailurePage />} />
               <Route path="/auth/login" element={<LoginPage />} />
@@ -71,16 +69,8 @@ function App() {
               <Route path="/tools" element={<ToolsIndexPage />} />
               <Route path="/tools/instagram-comment-picker" element={<InstagramCommentPickerPage />} />
               
-              {/* NEW: Dynamic Route for individual giveaway details by ID */}
-              {/* This will render GiveawayPage.tsx when navigating to /giveaway/YOUR_GIVEAWAY_ID */}
               <Route path="/giveaway/:id" element={<GiveawayPage />} />
-              
-              {/* NEW: Optional Route for giveaway results page by ID (if different from detail page) */}
-              {/* If your results page is separate, define it like this. Otherwise, handle within GiveawayPage. */}
-              <Route path="/giveaway/:id/results" element={<GiveawayPage /* or a dedicated ResultsPage component */ />} /> 
-              
-              {/* Optional: A catch-all route for 404 Not Found pages */}
-              {/* <Route path="*" element={<NotFoundPage />} /> */}
+              <Route path="/giveaway/:id/results" element={<GiveawayPage />} />
             </Routes>
           </main>
           <Footer />

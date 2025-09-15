@@ -101,7 +101,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('giveaways')
-        .select(`*, profiles(*), prizes(*)`) 
+        .select(`*, profiles!giveaways_organizer_id_fkey(*), prizes(*)`) 
         .eq('id', giveawayId) // <--- CRITICAL CHANGE: Query by ID
         .single();
 
