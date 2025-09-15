@@ -43,7 +43,7 @@ export const SubscriptionPage: React.FC = () => {
     {
       id: 'participant-basic',
       name: 'Basic Participant',
-      price: billingCycle === 'monthly' ? 299 : 2990,
+      price: billingCycle === 'monthly' ? 99 : 990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'Perfect for casual giveaway enthusiasts who want to participate regularly',
       features: [
@@ -61,7 +61,7 @@ export const SubscriptionPage: React.FC = () => {
     {
       id: 'participant-premium',
       name: 'Premium Participant',
-      price: billingCycle === 'monthly' ? 599 : 5990,
+      price: billingCycle === 'monthly' ? 199 : 1990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'For serious participants who want maximum winning potential',
       features: [
@@ -85,7 +85,7 @@ export const SubscriptionPage: React.FC = () => {
     {
       id: 'organizer-starter',
       name: 'Starter Organizer',
-      price: billingCycle === 'monthly' ? 1999 : 19990,
+      price: billingCycle === 'monthly' ? 599 : 5990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'Perfect for small creators and businesses starting their giveaway journey',
       features: [
@@ -104,7 +104,7 @@ export const SubscriptionPage: React.FC = () => {
     {
       id: 'organizer-professional',
       name: 'Professional Organizer',
-      price: billingCycle === 'monthly' ? 4999 : 49990,
+      price: billingCycle === 'monthly' ? 1999 : 19990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'Ideal for growing brands and influencers who want advanced features',
       features: [
@@ -126,7 +126,7 @@ export const SubscriptionPage: React.FC = () => {
     {
       id: 'organizer-enterprise',
       name: 'Enterprise Organizer',
-      price: billingCycle === 'monthly' ? 9999 : 99990,
+      price: billingCycle === 'monthly' ? 4999 : 49990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       description: 'For large organizations requiring unlimited scale and premium support',
       features: [
@@ -159,54 +159,83 @@ export const SubscriptionPage: React.FC = () => {
     setLoading(planId);
 
     try {
-      // For development/demo purposes, use localStorage to simulate subscription
-      // This prevents the 404 error when the subscriptions table doesn't exist
-      console.log('Setting subscription in localStorage for development');
-      localStorage.setItem(`${user.id}_subscribed`, 'true');
-      localStorage.setItem(`${user.id}_subscription_plan`, billingCycle);
-      localStorage.setItem(`${user.id}_subscription_date`, new Date().toISOString());
-      localStorage.setItem(`${user.id}_subscription_plan_name`, currentPlans.find(p => p.id === planId)?.name || '');
-      
-      // Try to also update the database if the table exists
-      try {
-        // Insert subscription into database
-        console.log('Inserting subscription into database');
-        const { error: insertError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: user.id,
-            status: 'active',
-            subscription_type: billingCycle,
-            price: price / 100, // Convert from paise to rupees for DB
-            current_period_start: new Date().toISOString(),
-            current_period_end: new Date(
-              new Date().setMonth(
-                new Date().getMonth() + (billingCycle === 'monthly' ? 1 : 12)
-              )
-            ).toISOString(),
-          });
-          
-        if (insertError) {
-          console.warn('Database subscription insert failed, using localStorage fallback:', insertError);
-        }
-      } catch (dbError) {
-        console.warn('Error accessing subscriptions table (using localStorage fallback):', dbError);
+      // PayU Payment Gateway Integration
+      const selectedPlan = currentPlans.find(p => p.id === planId);
+      if (!selectedPlan) {
+        throw new Error('Selected plan not found');
       }
+
+      // PayU configuration
+      const payuConfig = {
+        key: import.meta.env.VITE_PAYU_MERCHANT_KEY || 'gtKFFx', // Demo merchant key
+        salt: import.meta.env.VITE_PAYU_SALT || 'eCwWELxi', // Demo salt
+        serviceProvider: 'payu_paisa',
+        environment: import.meta.env.VITE_PAYU_ENVIRONMENT || 'test' // 'test' or 'live'
+      };
+
+      // Generate transaction ID
+      const txnid = `TXN_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
       
-      // Update local state
-      console.log('Refreshing subscription status in UI');
-      await useAuthStore.getState().checkSubscription();
+      // Prepare payment data
+      const paymentData = {
+        key: payuConfig.key,
+        txnid: txnid,
+        amount: price.toString(),
+        productinfo: selectedPlan.name,
+        firstname: profile?.username || user.email?.split('@')[0] || 'User',
+        email: user.email || '',
+        phone: '9999999999', // You might want to collect this from user
+        surl: `${window.location.origin}/subscription/success`,
+        furl: `${window.location.origin}/subscription/failure`,
+        service_provider: payuConfig.serviceProvider,
+        udf1: user.id,
+        udf2: planId,
+        udf3: billingCycle,
+        udf4: selectedRole,
+        udf5: ''
+      };
+
+      // Generate hash (in production, this should be done on server-side)
+      const hashString = `${payuConfig.key}|${paymentData.txnid}|${paymentData.amount}|${paymentData.productinfo}|${paymentData.firstname}|${paymentData.email}|||||||||||${payuConfig.salt}`;
       
-      // Show success message and redirect
-      toast.success(`You are now subscribed to the ${currentPlans.find(p => p.id === planId)?.name} plan! 🎉`);
-      // Use window.location for compatibility with the rest of the app's navigation
-      window.location.href = '/dashboard';
+      // For demo purposes, we'll use a simple hash. In production, generate this on your backend
+      const hash = await generateHash(hashString);
+      
+      // Create PayU form and submit
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = payuConfig.environment === 'test' 
+        ? 'https://test.payu.in/_payment'
+        : 'https://secure.payu.in/_payment';
+
+      // Add all payment data as hidden inputs
+      Object.entries({ ...paymentData, hash }).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      // Submit form
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
 
     } catch (error: any) {
       toast.error(error.message || 'Failed to initiate payment');
     } finally {
       setLoading(null);
     }
+  };
+
+  // Simple hash generation for demo (use server-side in production)
+  const generateHash = async (str: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-512', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
   return (

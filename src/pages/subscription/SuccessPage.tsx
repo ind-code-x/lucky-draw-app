@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Trophy, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
+import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const SubscriptionSuccessPage: React.FC = () => {
@@ -16,6 +17,49 @@ export const SubscriptionSuccessPage: React.FC = () => {
   useEffect(() => {
     if (status === 'success') {
       toast.success('Payment successful! Welcome to premium! ✨');
+      
+      // Update subscription status in localStorage and database
+      const updateSubscription = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('udf1');
+        const planId = urlParams.get('udf2');
+        const billingCycle = urlParams.get('udf3');
+        const role = urlParams.get('udf4');
+        
+        if (userId) {
+          // Update localStorage
+          localStorage.setItem(`${userId}_subscribed`, 'true');
+          localStorage.setItem(`${userId}_subscription_plan`, billingCycle || 'monthly');
+          localStorage.setItem(`${userId}_subscription_date`, new Date().toISOString());
+          localStorage.setItem(`${userId}_subscription_plan_name`, productinfo || '');
+          
+          // Try to update database
+          try {
+            const { error } = await supabase
+              .from('subscriptions')
+              .insert({
+                user_id: userId,
+                status: 'active',
+                subscription_type: billingCycle || 'monthly',
+                price: parseFloat(amount || '0'),
+                current_period_start: new Date().toISOString(),
+                current_period_end: new Date(
+                  new Date().setMonth(
+                    new Date().getMonth() + (billingCycle === 'monthly' ? 1 : 12)
+                  )
+                ).toISOString(),
+              });
+              
+            if (error) {
+              console.warn('Database subscription insert failed:', error);
+            }
+          } catch (dbError) {
+            console.warn('Error accessing subscriptions table:', dbError);
+          }
+        }
+      };
+      
+      updateSubscription();
     }
   }, [status]);
 
