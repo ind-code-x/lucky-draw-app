@@ -78,7 +78,7 @@ export const HomePage: React.FC = () => {
   // Handler for viewing results (for ended giveaways)
   const handleViewResults = (event: React.MouseEvent, giveawayId: string) => {
       event.stopPropagation(); // Prevents the parent Link/Card click from firing
-      navigate(`/giveaway/${giveawayId}/results`);
+      navigate(`/giveaway/${giveawayId}`);
   };
 
   return (
@@ -260,7 +260,7 @@ export const HomePage: React.FC = () => {
                                       variant="outline"
                                       className="w-full border-maroon-600 text-maroon-600 hover:bg-maroon-50"
                                   >
-                                      View Results
+                                      View Giveaway
                                   </Button>
                               )}
                           </div>

@@ -70,7 +70,6 @@ function App() {
               <Route path="/tools/instagram-comment-picker" element={<InstagramCommentPickerPage />} />
               
               <Route path="/giveaway/:id" element={<GiveawayPage />} />
-              <Route path="/giveaway/:id/results" element={<GiveawayPage />} />
             </Routes>
           </main>
           <Footer />

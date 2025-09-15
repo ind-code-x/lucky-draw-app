@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Gift, Menu, X, Plus, LogIn, LogOut, User, Heart, Crown, Instagram, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -9,6 +10,18 @@ export const Navbar: React.FC = () => {
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const { user, profile, signOut } = useAuthStore();
   const location = useLocation();
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setIsToolsOpen(false);
+    };
+    
+    if (isToolsOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isToolsOpen]);
 
   const navigation = [
     { name: 'Giveaways', href: '/' },
@@ -57,7 +70,10 @@ export const Navbar: React.FC = () => {
             {/* Tools Dropdown */}
             <div className="relative">
               <button
-                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsToolsOpen(!isToolsOpen);
+                }}
                 className={`flex items-center space-x-1 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
                   isToolsActive()
                     ? 'text-maroon-700 bg-pink-100 shadow-md'
@@ -69,7 +85,10 @@ export const Navbar: React.FC = () => {
               </button>
               
               {isToolsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-pink-200 py-2 z-50">
+                <div 
+                  className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-pink-200 py-2 z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {toolsDropdown.map((item) => (
                     <Link
                       key={item.name}

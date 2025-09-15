@@ -217,14 +217,14 @@ export const GiveawayPage: React.FC = () => {
             ) : hasEnded && !isOrganizer ? (
                 // Participant view for ended giveaway
                 <Button
-                    onClick={() => navigate(`/giveaway/${currentGiveaway.slug}/results`)} // Navigate to results page
+                    disabled
                     fullWidth
                     size="lg"
                     icon={Trophy}
                     variant="outline"
                     className="border-maroon-600 text-maroon-600 hover:bg-maroon-50"
                 >
-                    View Results
+                    Results Coming Soon
                 </Button>
             ) : null }
           </CardContent>
