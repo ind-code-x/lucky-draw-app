@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Gift, Menu, X, Plus, LogIn, LogOut, User, Heart, Crown, Instagram, ChevronDown } from 'lucide-react';
