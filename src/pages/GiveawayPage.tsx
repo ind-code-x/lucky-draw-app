@@ -19,7 +19,9 @@ import {
   Youtube,
   Facebook,
   Globe,
-  Loader2
+  Loader2,
+  Award,
+  Crown
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -37,6 +39,8 @@ export const GiveawayPage: React.FC = () => {
   const [loadingGiveaway, setLoadingGiveaway] = useState(true);
   const [hasParticipated, setHasParticipated] = useState(false);
   const [loadingParticipation, setLoadingParticipation] = useState(false); // For "Enter Giveaway" button
+  const [winners, setWinners] = useState<any[]>([]);
+  const [loadingWinners, setLoadingWinners] = useState(false);
 
   useEffect(() => {
     const loadGiveaway = async () => {
@@ -82,6 +86,40 @@ export const GiveawayPage: React.FC = () => {
     checkParticipation();
   }, [user, currentGiveaway?.id]); // Re-check if user or giveaway changes
 
+  // Fetch winners for ended giveaways
+  useEffect(() => {
+    const fetchWinners = async () => {
+      if (currentGiveaway?.id && hasEnded) {
+        setLoadingWinners(true);
+        try {
+          const { data, error } = await supabase
+            .from('winners')
+            .select(`
+              id,
+              status,
+              drawn_at,
+              prizes(name, value, description),
+              participants(
+                id,
+                profiles(username, email)
+              )
+            `)
+            .eq('giveaway_id', currentGiveaway.id);
+
+          if (error) {
+            console.error('Error fetching winners:', error);
+          } else {
+            setWinners(data || []);
+          }
+        } catch (error) {
+          console.error('Error in fetchWinners:', error);
+        } finally {
+          setLoadingWinners(false);
+        }
+      }
+    };
+    fetchWinners();
+  }, [currentGiveaway?.id, hasEnded]);
   const handleEnterGiveaway = async () => {
     if (!user) {
       toast.error('Please sign in to participate.');
@@ -214,22 +252,90 @@ export const GiveawayPage: React.FC = () => {
                 >
                     Manage Giveaway
                 </Button>
-            ) : hasEnded && !isOrganizer ? (
-                // Participant view for ended giveaway
-                <Button
-                    disabled
-                    fullWidth
-                    size="lg"
-                    icon={Trophy}
-                    variant="outline"
-                    className="border-maroon-600 text-maroon-600 hover:bg-maroon-50"
-                >
-                    Results Coming Soon
-                </Button>
             ) : null }
           </CardContent>
         </Card>
 
+        {/* Winners Section for Ended Giveaways */}
+        {hasEnded && (
+          <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                <Trophy className="w-6 h-6 mr-3 text-pink-600" />
+                🎉 Winners
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingWinners ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 text-maroon-600 animate-spin mr-3" />
+                  <span className="text-gray-600">Loading winners...</span>
+                </div>
+              ) : winners.length > 0 ? (
+                <div className="space-y-4">
+                  {winners.map((winner, index) => (
+                    <div
+                      key={winner.id}
+                      className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 hover:from-yellow-100 hover:to-orange-100 transition-all duration-300"
+                    >
+                      <div className="flex items-start space-x-4">
+                        <div className="bg-gradient-to-br from-yellow-500 to-orange-500 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg shadow-lg">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <Crown className="w-5 h-5 text-yellow-600" />
+                            <h3 className="text-xl font-bold text-yellow-800">
+                              {winner.participants?.profiles?.username || 'Anonymous Winner'}
+                            </h3>
+                          </div>
+                          
+                          {winner.prizes && (
+                            <div className="bg-white/60 rounded-lg p-3 mb-3">
+                              <h4 className="font-semibold text-amber-800 mb-1">Prize Won:</h4>
+                              <p className="text-amber-700 font-medium">{winner.prizes.name}</p>
+                              {winner.prizes.description && (
+                                <p className="text-sm text-amber-600 mt-1">{winner.prizes.description}</p>
+                              )}
+                              {winner.prizes.value > 0 && (
+                                <p className="text-sm text-amber-600 mt-1">Value: ₹{winner.prizes.value.toLocaleString('en-IN')}</p>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <span className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              Won on {new Date(winner.drawn_at).toLocaleDateString()}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              winner.status === 'pending_contact' ? 'bg-yellow-100 text-yellow-800' :
+                              winner.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
+                              winner.status === 'responded' ? 'bg-green-100 text-green-800' :
+                              winner.status === 'prize_sent' ? 'bg-purple-100 text-purple-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {winner.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-600 mb-2">No Winners Yet</h3>
+                  <p className="text-gray-500">
+                    Winners haven't been selected for this giveaway yet. 
+                    {isOrganizer && ' You can select winners from your dashboard.'}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {/* Description */}
         <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl mb-8">
           <CardHeader><CardTitle className="text-xl font-bold text-maroon-800">Description</CardTitle></CardHeader>
