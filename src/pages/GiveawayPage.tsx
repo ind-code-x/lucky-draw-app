@@ -122,6 +122,11 @@ export const GiveawayPage: React.FC = () => {
   }, [currentGiveaway?.id, hasEnded]);
   const handleEnterGiveaway = async () => {
 
+  const giveawayStatus = currentGiveaway?.status;
+  const isGiveawayActive = giveawayStatus === 'active';
+  const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
+  const isOrganizer = user?.id === currentGiveaway?.organizer_id;
+
     if (!user) {
       toast.error('Please sign in to participate.');
       navigate('/auth/login');
@@ -153,12 +158,6 @@ export const GiveawayPage: React.FC = () => {
       setLoadingParticipation(false);
     }
   };
-
-  // Define these variables in the component scope so they're accessible everywhere
-  const giveawayStatus = currentGiveaway?.status;
-  const isGiveawayActive = giveawayStatus === 'active';
-  const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
-  const isOrganizer = user?.id === currentGiveaway?.organizer_id;
 
   const getMethodIcon = (methodType: string) => {
     const Icon = entryMethodOptions.find(option => option.value === methodType)?.icon;
