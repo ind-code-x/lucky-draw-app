@@ -120,13 +120,14 @@ export const GiveawayPage: React.FC = () => {
     };
     fetchWinners();
   }, [currentGiveaway?.id, hasEnded]);
-  const handleEnterGiveaway = async () => {
 
+  // Define variables that need to be accessible throughout the component
   const giveawayStatus = currentGiveaway?.status;
   const isGiveawayActive = giveawayStatus === 'active';
   const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
   const isOrganizer = user?.id === currentGiveaway?.organizer_id;
 
+  const handleEnterGiveaway = async () => {
     if (!user) {
       toast.error('Please sign in to participate.');
       navigate('/auth/login');
