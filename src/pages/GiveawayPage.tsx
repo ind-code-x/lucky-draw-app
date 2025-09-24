@@ -121,6 +121,12 @@ export const GiveawayPage: React.FC = () => {
     fetchWinners();
   }, [currentGiveaway?.id, hasEnded]);
   const handleEnterGiveaway = async () => {
+
+  const giveawayStatus = currentGiveaway?.status;
+  const isGiveawayActive = giveawayStatus === 'active';
+  const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
+  const isOrganizer = user?.id === currentGiveaway?.organizer_id;
+
     if (!user) {
       toast.error('Please sign in to participate.');
       navigate('/auth/login');
@@ -186,12 +192,6 @@ export const GiveawayPage: React.FC = () => {
       </div>
     );
   }
-
-  const giveawayStatus = currentGiveaway.status;
-  const isGiveawayActive = giveawayStatus === 'active';
-  const hasEnded = new Date(currentGiveaway.end_time) < new Date();
-  const isOrganizer = user?.id === currentGiveaway.organizer_id;
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
