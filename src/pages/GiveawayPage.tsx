@@ -121,6 +121,8 @@ export const GiveawayPage: React.FC = () => {
     fetchWinners();
   }, [currentGiveaway?.id, hasEnded]);
   const handleEnterGiveaway = async () => {
+    setLoadingParticipation(true);
+    
     if (!user) {
       toast.error('Please sign in to participate.');
       navigate('/auth/login');
@@ -133,6 +135,10 @@ export const GiveawayPage: React.FC = () => {
     if (profile?.role === 'participant' && !isSubscribed) {
       toast.error('You must have an active subscription to enter this giveaway.');
       navigate('/pricing');
+      return;
+    }
+    
+    try {
       await addParticipant(currentGiveaway!.id, user.id); // Use ! for non-null assertion as checked above
       setHasParticipated(true); // Update local state immediately
       toast.success('You have successfully entered this giveaway! Good luck!');
