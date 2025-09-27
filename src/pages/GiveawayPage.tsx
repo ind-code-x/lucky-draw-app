@@ -133,11 +133,6 @@ export const GiveawayPage: React.FC = () => {
     if (profile?.role === 'participant' && !isSubscribed) {
       toast.error('You must have an active subscription to enter this giveaway.');
       navigate('/pricing');
-      return;
-    }
-
-    setLoadingParticipation(true);
-    try {
       await addParticipant(currentGiveaway!.id, user.id); // Use ! for non-null assertion as checked above
       setHasParticipated(true); // Update local state immediately
       toast.success('You have successfully entered this giveaway! Good luck!');
@@ -192,6 +187,12 @@ export const GiveawayPage: React.FC = () => {
   const hasEnded = new Date(currentGiveaway.end_time) < new Date();
   const isOrganizer = user?.id === currentGiveaway.organizer_id;
 
+
+  // Calculate giveaway status variables
+  const giveawayStatus = currentGiveaway.status;
+  const isGiveawayActive = giveawayStatus === 'active';
+  const hasEnded = new Date(currentGiveaway.end_time) < new Date();
+  const isOrganizer = user?.id === currentGiveaway.organizer_id;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
