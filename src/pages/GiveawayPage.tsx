@@ -98,7 +98,8 @@ export const GiveawayPage: React.FC = () => {
               prizes(name, value, description),
               participants(
                 id,
-               user_id(username, email)
+               user_id,
+               profiles!participants_user_id_fkey(username, email)
               )
             `)
             .eq('giveaway_id', currentGiveaway.id);
@@ -282,7 +283,7 @@ export const GiveawayPage: React.FC = () => {
                           <div className="flex items-center space-x-3 mb-2">
                             <Crown className="w-5 h-5 text-yellow-600" />
                             <h3 className="text-xl font-bold text-yellow-800">
-                             {winner.participants?.user_id?.username || 'Anonymous Winner'}
+                             {winner.participants?.profiles?.username || 'Anonymous Winner'}
                             </h3>
                           </div>
                           
