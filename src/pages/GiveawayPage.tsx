@@ -31,14 +31,14 @@ import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const GiveawayPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>(); // Get giveaway ID from URL
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile, isSubscribed } = useAuthStore();
   const { currentGiveaway, fetchGiveaway, addParticipant } = useGiveawayStore();
 
   const [loadingGiveaway, setLoadingGiveaway] = useState(true);
   const [hasParticipated, setHasParticipated] = useState(false);
-  const [loadingParticipation, setLoadingParticipation] = useState(false); // For "Enter Giveaway" button
+  const [loadingParticipation, setLoadingParticipation] = useState(false);
   const [winners, setWinners] = useState<any[]>([]);
   const [loadingWinners, setLoadingWinners] = useState(false);
 
@@ -47,11 +47,11 @@ export const GiveawayPage: React.FC = () => {
       if (id) {
         setLoadingGiveaway(true);
         try {
-          await fetchGiveaway(id); // Use fetchGiveaway to get details by ID
+          await fetchGiveaway(id);
         } catch (error) {
           console.error('Error fetching giveaway:', error);
           toast.error('Failed to load giveaway details.');
-          navigate('/'); // Redirect to home if giveaway not found/error
+          navigate('/');
         } finally {
           setLoadingGiveaway(false);
         }
@@ -64,9 +64,6 @@ export const GiveawayPage: React.FC = () => {
   useEffect(() => {
     const checkParticipation = async () => {
       if (user && currentGiveaway?.id) {
-        // You need to add a function to useGiveawayStore to check single participant status
-        // For now, let's assume fetchParticipants can check and you filter locally
-        // Alternatively, add a specific `checkIfParticipated(giveawayId, userId)` to giveawayStore
         const { data, error } = await supabase
           .from('participants')
           .select('id')
@@ -84,12 +81,12 @@ export const GiveawayPage: React.FC = () => {
       }
     };
     checkParticipation();
-  }, [user, currentGiveaway?.id]); // Re-check if user or giveaway changes
+  }, [user, currentGiveaway?.id]);
 
   // Fetch winners for ended giveaways
   useEffect(() => {
     const fetchWinners = async () => {
-      if (currentGiveaway?.id && hasEnded) {
+      if (currentGiveaway?.id && new Date(currentGiveaway.end_time) < new Date()) {
         setLoadingWinners(true);
         try {
           const { data, error } = await supabase
@@ -119,10 +116,9 @@ export const GiveawayPage: React.FC = () => {
       }
     };
     fetchWinners();
-  }, [currentGiveaway?.id, hasEnded]);
+  }, [currentGiveaway?.id]);
+
   const handleEnterGiveaway = async () => {
-    setLoadingParticipation(true);
-    
     if (!user) {
       toast.error('Please sign in to participate.');
       navigate('/auth/login');
@@ -138,16 +134,18 @@ export const GiveawayPage: React.FC = () => {
       return;
     }
     
+    setLoadingParticipation(true);
+    
     try {
-      await addParticipant(currentGiveaway!.id, user.id); // Use ! for non-null assertion as checked above
-      setHasParticipated(true); // Update local state immediately
+      await addParticipant(currentGiveaway!.id, user.id);
+      setHasParticipated(true);
       toast.success('You have successfully entered this giveaway! Good luck!');
     } catch (error) {
       console.error('Error entering giveaway:', error);
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-          toast.error('You have already entered this giveaway.');
+        toast.error('You have already entered this giveaway.');
       } else {
-          toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
+        toast.error(error instanceof Error ? error.message : 'Failed to enter giveaway.');
       }
     } finally {
       setLoadingParticipation(false);
@@ -159,7 +157,7 @@ export const GiveawayPage: React.FC = () => {
     return Icon ? <Icon className="w-5 h-5 text-pink-600 mr-2" /> : <Globe className="w-5 h-5 text-pink-600 mr-2" />;
   };
 
-  const entryMethodOptions = [ // Re-define these or import if from a common file
+  const entryMethodOptions = [
     { value: 'instagram_follow', label: 'Follow on Instagram', icon: Instagram },
     { value: 'twitter_follow', label: 'Follow on Twitter', icon: Twitter },
     { value: 'facebook_like', label: 'Like Facebook Page', icon: Facebook },
@@ -192,7 +190,6 @@ export const GiveawayPage: React.FC = () => {
   const isGiveawayActive = giveawayStatus === 'active';
   const hasEnded = new Date(currentGiveaway.end_time) < new Date();
   const isOrganizer = user?.id === currentGiveaway.organizer_id;
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
@@ -229,7 +226,6 @@ export const GiveawayPage: React.FC = () => {
 
             {/* Action Button */}
             {!isOrganizer && !hasEnded ? (
-                // Participant view for active giveaway
                 <Button
                     onClick={handleEnterGiveaway}
                     loading={loadingParticipation}
@@ -237,15 +233,14 @@ export const GiveawayPage: React.FC = () => {
                     size="lg"
                     icon={Heart}
                     className="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 shadow-lg"
-                    disabled={hasParticipated} // Disable if already entered
+                    disabled={hasParticipated}
                 >
                     {hasParticipated ? 'Already Entered!' : 'Enter Giveaway'}
                 </Button>
             ) : isOrganizer ? (
-                // Organizer view
                 <Button
                     as={Link}
-                    to={`/dashboard/giveaway/${currentGiveaway.slug}`} // Link to organizer's management page
+                    to={`/dashboard/giveaway/${currentGiveaway.slug}`}
                     fullWidth
                     size="lg"
                     icon={Sparkles}
@@ -337,6 +332,7 @@ export const GiveawayPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
         {/* Description */}
         <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl mb-8">
           <CardHeader><CardTitle className="text-xl font-bold text-maroon-800">Description</CardTitle></CardHeader>
