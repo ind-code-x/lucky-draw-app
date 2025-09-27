@@ -194,12 +194,6 @@ export const GiveawayPage: React.FC = () => {
   const isOrganizer = user?.id === currentGiveaway.organizer_id;
 
 
-  // Calculate giveaway status variables
-  const giveawayStatus = currentGiveaway.status;
-  const isGiveawayActive = giveawayStatus === 'active';
-  const hasEnded = new Date(currentGiveaway.end_time) < new Date();
-  const isOrganizer = user?.id === currentGiveaway.organizer_id;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
