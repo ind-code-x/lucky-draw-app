@@ -89,7 +89,7 @@ export const GiveawayPage: React.FC = () => {
   // Fetch winners for ended giveaways
   useEffect(() => {
     const fetchWinners = async () => {
-      if (currentGiveaway?.id && hasEnded) {
+      if (currentGiveaway?.id && currentGiveaway && new Date(currentGiveaway.end_time) < new Date()) {
         setLoadingWinners(true);
         try {
           const { data, error } = await supabase
@@ -119,13 +119,7 @@ export const GiveawayPage: React.FC = () => {
       }
     };
     fetchWinners();
-  }, [currentGiveaway?.id, hasEnded]);
-
-  // Define variables that need to be accessible throughout the component
-  const giveawayStatus = currentGiveaway?.status;
-  const isGiveawayActive = giveawayStatus === 'active';
-  const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
-  const isOrganizer = user?.id === currentGiveaway?.organizer_id;
+  }, [currentGiveaway?.id, currentGiveaway?.end_time]);
 
   const handleEnterGiveaway = async () => {
     if (!user) {
@@ -133,6 +127,13 @@ export const GiveawayPage: React.FC = () => {
       navigate('/auth/login');
       return;
     }
+    
+    // Define variables that need to be accessible throughout the component
+    const giveawayStatus = currentGiveaway?.status;
+    const isGiveawayActive = giveawayStatus === 'active';
+    const hasEnded = currentGiveaway ? new Date(currentGiveaway.end_time) < new Date() : false;
+    const isOrganizer = user?.id === currentGiveaway?.organizer_id;
+    
     if (hasParticipated) {
       toast.info('You have already entered this giveaway!');
       return;
