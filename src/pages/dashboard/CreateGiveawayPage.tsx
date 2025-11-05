@@ -1,7 +1,5 @@
-// CreateGiveawayPage.tsx
-
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   Gift,
@@ -20,7 +18,7 @@ import {
   Mail,
   CheckCircle,
   Image as ImageIcon,
-  Video
+  Upload
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
@@ -28,12 +26,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { useAuthStore } from '../../stores/authStore';
 import { useGiveawayStore } from '../../stores/giveawayStore';
 import toast from 'react-hot-toast';
-import { supabase } from '../../lib/supabase';
 
 interface GiveawayFormData {
   title: string;
   description: string;
   rules: string;
+  banner_url?: string;
   start_time: string;
   end_time: string;
   announce_time: string;
@@ -56,7 +54,8 @@ export const CreateGiveawayPage: React.FC = () => {
   const { createGiveaway } = useGiveawayStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const now = new Date();
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -79,6 +78,7 @@ export const CreateGiveawayPage: React.FC = () => {
       title: '',
       description: '',
       rules: '',
+      banner_url: '',
       start_time: defaultStartTime,
       end_time: defaultEndTime,
       announce_time: defaultAnnounceTime,
@@ -93,13 +93,12 @@ export const CreateGiveawayPage: React.FC = () => {
     control,
     name: 'prizes'
   });
-  
+
   const { fields: entryMethodFields, append: appendEntryMethod, remove: removeEntryMethod } = useFieldArray({
     control,
     name: 'entry_methods'
   });
 
-  // Watch the required checkboxes to dynamically update validation
   useEffect(() => {
     entryMethodFields.forEach((field, index) => {
       const isRequired = watch(`entry_methods.${index}.required`);
@@ -107,7 +106,7 @@ export const CreateGiveawayPage: React.FC = () => {
         trigger(`entry_methods.${index}.value`);
       } else {
         if (errors.entry_methods?.[index]?.value) {
-            trigger(`entry_methods.${index}.value`);
+          trigger(`entry_methods.${index}.value`);
         }
       }
     });
@@ -123,7 +122,47 @@ export const CreateGiveawayPage: React.FC = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
   };
-  
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setBannerImage(base64String);
+        setValue('banner_url', base64String);
+        toast.success('Image uploaded successfully');
+        setUploadingImage(false);
+      };
+      reader.onerror = () => {
+        toast.error('Failed to upload image');
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Failed to upload image');
+      setUploadingImage(false);
+    }
+  };
+
+  const removeBannerImage = () => {
+    setBannerImage(null);
+    setValue('banner_url', '');
+  };
+
   const entryMethodOptions = [
     { value: 'instagram_follow', label: 'Follow on Instagram', icon: Instagram },
     { value: 'twitter_follow', label: 'Follow on Twitter', icon: Twitter },
@@ -133,79 +172,9 @@ export const CreateGiveawayPage: React.FC = () => {
     { value: 'website_visit', label: 'Visit Website', icon: Globe },
   ];
 
-  // Handler for file input change
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
-      const maxSize = 10 * 1024 * 1024;
-
-      if (!allowedTypes.includes(file.type)) {
-        toast.error('Only images (JPG, PNG, GIF) and videos (MP4, WebM) are allowed.');
-        setBannerFile(null);
-        event.target.value = '';
-        return;
-      }
-      if (file.size > maxSize) {
-        toast.error('File size exceeds 10MB limit.');
-        setBannerFile(null);
-        event.target.value = '';
-        return;
-      }
-      setBannerFile(file);
-    } else {
-      setBannerFile(null);
-    }
-  };
-
-  // Function to upload file to Supabase Storage
-  const uploadFileToSupabase = async (file: File): Promise<string | null> => {
-    if (!file) return null;
-
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user?.id}/${Date.now()}.${fileExt}`;
-    const bucketName = 'giveaway-assets';
-
-    try {
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        throw error;
-      }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
-      if (publicUrlData) {
-        return publicUrlData.publicUrl;
-      }
-      return null;
-
-    } catch (error: any) {
-      console.error('Error uploading file to Supabase Storage:', error);
-      toast.error(`File upload failed: ${error.message || 'Unknown error'}`);
-      return null;
-    }
-  };
-
   const onSubmit = async (data: GiveawayFormData) => {
-    debugger; 
-    console.log('*** onSubmit function STARTED ***'); 
-
     setLoading(true);
-    let banner_url: string | null = null;
-
     try {
-      console.log('Form data being submitted to onSubmit:', data); 
-      
-      // Client-side validation checks before calling the store (these are good)
       const invalidEntryMethods = data.entry_methods.filter(
         method => method.required && !method.value
       );
@@ -214,24 +183,23 @@ export const CreateGiveawayPage: React.FC = () => {
         setLoading(false);
         return;
       }
-      
+
       const invalidPrizes = data.prizes.filter(prize => !prize.name);
       if (invalidPrizes.length > 0) {
         toast.error('Please provide a name for all prizes');
         setLoading(false);
         return;
       }
-      
+
       const formattedPrizes = data.prizes.map(prize => ({
         name: prize.name,
         description: prize.description || '',
         value: Number(prize.value) || 0,
         quantity: Number(prize.quantity) || 1
       }));
-      
+
       const slug = data.title ? generateSlug(data.title) : `giveaway-${Date.now()}`;
-      
-      // Validate dates if provided
+
       if (data.start_time && data.end_time) {
         const startTime = new Date(data.start_time);
         const endTime = new Date(data.end_time);
@@ -249,8 +217,7 @@ export const CreateGiveawayPage: React.FC = () => {
           }
         }
       }
-      
-      // Convert entry methods to a config object
+
       const entry_config: { [key: string]: { enabled: boolean; points: number; value: string; required: boolean } } = {};
       data.entry_methods.forEach(method => {
         entry_config[method.type] = {
@@ -261,25 +228,13 @@ export const CreateGiveawayPage: React.FC = () => {
         };
       });
 
-      // --- NEW: Handle File Upload ---
-      if (bannerFile) {
-        toast.loading('Uploading cover image/video...', { id: 'file-upload' });
-        banner_url = await uploadFileToSupabase(bannerFile);
-        toast.dismiss('file-upload');
-        if (!banner_url) {
-          setLoading(false);
-          return; // Stop submission if file upload failed
-        }
-      }
-      // --- END NEW FILE UPLOAD ---
-      
       const giveawayData = {
         organizer_id: user.id,
         title: data.title,
         slug,
         description: data.description,
         rules: data.rules || '',
-        banner_url: banner_url,
+        banner_url: data.banner_url || null,
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
@@ -289,22 +244,16 @@ export const CreateGiveawayPage: React.FC = () => {
         unique_participants: 0
       };
 
-      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); 
-      console.log('Final data to be sent to createGiveaway:'); 
-      console.log('giveawayData:', giveawayData); 
-      console.log('formattedPrizes:', formattedPrizes);
+      await createGiveaway(giveawayData, formattedPrizes);
 
-      await createGiveaway(giveawayData, formattedPrizes); 
-
-      toast.success('Giveaway created successfully! ✨');
+      toast.success('Giveaway created successfully!');
       navigate('/dashboard');
 
     } catch (error) {
-      console.error('Create giveaway error (from onSubmit catch):', error);
+      console.error('Create giveaway error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create giveaway');
     } finally {
       setLoading(false);
-      console.log('*** onSubmit function FINISHED (finally block) ***');
     }
   };
 
@@ -317,18 +266,17 @@ export const CreateGiveawayPage: React.FC = () => {
       removePrize(index);
     }
   };
-  
+
   const addEntryMethod = () => {
     appendEntryMethod({ type: 'website_visit', value: '', points: 1, required: false });
   };
-  
+
   const removeEntryMethodField = (index: number) => {
     if (entryMethodFields.length > 1) {
       removeEntryMethod(index);
     }
   };
 
-  // Custom validation function for required entry methods
   const validateEntryMethodValue = (index: number) => {
     return (value: string) => {
       const isRequired = watch(`entry_methods.${index}.required`);
@@ -340,15 +288,14 @@ export const CreateGiveawayPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-maroon-50">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-red-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
         <div className="text-center mb-12">
-          <div className="bg-gradient-to-br from-maroon-600 to-pink-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl relative">
+          <div className="bg-gradient-to-br from-red-600 to-pink-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl relative">
             <Gift className="w-10 h-10 text-white" />
             <Sparkles className="w-4 h-4 text-pink-200 absolute -top-1 -right-1 animate-pulse" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-maroon-700 to-pink-600 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-red-700 to-pink-600 bg-clip-text text-transparent mb-4">
             Create Magical Giveaway
           </h1>
           <p className="text-xl text-gray-600">
@@ -357,10 +304,9 @@ export const CreateGiveawayPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          {/* Basic Information */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+              <CardTitle className="text-2xl font-bold text-red-800 flex items-center">
                 <Gift className="w-6 h-6 mr-3 text-pink-600" />
                 Basic Information
               </CardTitle>
@@ -372,90 +318,81 @@ export const CreateGiveawayPage: React.FC = () => {
                 {...register('title', { required: 'Title is required' })}
                 error={errors.title?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cover Photo (Optional)
+                </label>
+                <div className="border-2 border-dashed border-pink-200 rounded-lg p-6 hover:border-red-400 transition-colors duration-200">
+                  {bannerImage ? (
+                    <div className="relative">
+                      <img
+                        src={bannerImage}
+                        alt="Cover preview"
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeBannerImage}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer">
+                      <Upload className="w-12 h-12 text-pink-400 mb-3" />
+                      <span className="text-sm font-medium text-red-700 mb-1">
+                        Click to upload cover image
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        PNG, JPG up to 5MB
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  )}
+                  {uploadingImage && (
+                    <div className="text-center mt-2 text-sm text-red-600">
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <Textarea
                 label="Description"
-                placeholder="Describe your magical giveaway and what makes it special..."
-                rows={4}
+                placeholder="Describe your magical giveaway and what makes it special. You can write as much detail as you need!"
+                rows={8}
                 {...register('description', { required: 'Description is required' })}
                 error={errors.description?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
 
               <Textarea
                 label="Rules & Terms (Optional)"
-                placeholder="Enter the rules and terms for your giveaway..."
-                rows={3}
+                placeholder="Enter the rules and terms for your giveaway. Include eligibility requirements, how winners will be selected, prize delivery details, and any other important terms."
+                rows={6}
                 {...register('rules')}
                 error={errors.rules?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
             </CardContent>
           </Card>
 
-          {/* NEW: Cover Image/Video Upload Section */}
-          <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
-                <ImageIcon className="w-6 h-6 mr-3 text-pink-600" />
-                Cover Image / Video (Optional)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <label 
-                  htmlFor="banner-upload" 
-                  className="cursor-pointer bg-gradient-to-r from-pink-500 to-rose-500 text-white py-2 px-4 rounded-lg shadow-md hover:from-pink-600 hover:to-rose-600 transition-all duration-300 flex items-center"
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Choose File
-                  <input
-                    id="banner-upload"
-                    type="file"
-                    accept="image/*,video/mp4,video/webm" // Accept images and specific video formats
-                    onChange={handleFileChange}
-                    className="hidden" // Hide the default file input
-                  />
-                </label>
-                {bannerFile ? (
-                  <span className="text-gray-700 text-sm flex items-center">
-                    {bannerFile.type.startsWith('image') ? <ImageIcon className="w-4 h-4 mr-1 text-maroon-600" /> : <Video className="w-4 h-4 mr-1 text-maroon-600" />}
-                    {bannerFile.name}
-                  </span>
-                ) : (
-                  <span className="text-gray-500 text-sm">No file selected (Max 10MB, JPG/PNG/GIF/MP4/WebM)</span>
-                )}
-              </div>
-              {bannerFile && (
-                <div className="flex justify-start">
-                  {bannerFile.type.startsWith('image') ? (
-                    <img 
-                      src={URL.createObjectURL(bannerFile)} 
-                      alt="Cover Preview" 
-                      className="max-w-xs max-h-48 object-cover rounded-lg shadow-md border border-pink-200"
-                    />
-                  ) : (
-                    <video 
-                      src={URL.createObjectURL(bannerFile)} 
-                      controls 
-                      className="max-w-xs max-h-48 object-cover rounded-lg shadow-md border border-pink-200"
-                    />
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          {/* END NEW: Cover Image/Video Upload Section */}
-
-          {/* Entry Methods */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                <CardTitle className="text-2xl font-bold text-red-800 flex items-center">
                   <CheckCircle className="w-6 h-6 mr-3 text-pink-600" />
                   Entry Methods
                 </CardTitle>
@@ -489,8 +426,8 @@ export const CreateGiveawayPage: React.FC = () => {
                     )}
 
                     <div className="flex items-center mb-4 gap-2">
-                      <EntryIcon className="w-5 h-5 text-maroon-600" />
-                      <h4 className="text-lg font-semibold text-maroon-800">Entry Method {index + 1}</h4>
+                      <EntryIcon className="w-5 h-5 text-red-600" />
+                      <h4 className="text-lg font-semibold text-red-800">Entry Method {index + 1}</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -498,7 +435,7 @@ export const CreateGiveawayPage: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Method Type</label>
                         <select
                           {...register(`entry_methods.${index}.type`)}
-                          className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:border-maroon-400 focus:ring-maroon-400 bg-white"
+                          className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:border-red-400 focus:ring-red-400 bg-white"
                         >
                           {entryMethodOptions.map(option => (
                             <option key={option.value} value={option.value}>
@@ -518,7 +455,7 @@ export const CreateGiveawayPage: React.FC = () => {
                         })}
                         error={errors.entry_methods?.[index]?.value?.message}
                         fullWidth
-                        className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                        className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                       />
 
                       <Input
@@ -531,7 +468,7 @@ export const CreateGiveawayPage: React.FC = () => {
                         })}
                         error={errors.entry_methods?.[index]?.points?.message}
                         fullWidth
-                        className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                        className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                       />
                     </div>
 
@@ -539,14 +476,10 @@ export const CreateGiveawayPage: React.FC = () => {
                       <input
                         type="checkbox"
                         id={`required-${index}`}
-                        className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
+                        className="rounded border-pink-300 text-red-600 focus:ring-red-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
                         onChange={(e) => {
-                          if (e.target.checked) {
-                            trigger(`entry_methods.${index}.value`);
-                          } else {
-                            trigger(`entry_methods.${index}.value`);
-                          }
+                          trigger(`entry_methods.${index}.value`);
                         }}
                       />
                       <label htmlFor={`required-${index}`} className="ml-2 text-sm text-gray-700">
@@ -559,10 +492,9 @@ export const CreateGiveawayPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Timing */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+              <CardTitle className="text-2xl font-bold text-red-800 flex items-center">
                 <Calendar className="w-6 h-6 mr-3 text-pink-600" />
                 Timing
               </CardTitle>
@@ -574,7 +506,7 @@ export const CreateGiveawayPage: React.FC = () => {
                 {...register('start_time')}
                 error={errors.start_time?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
 
               <Input
@@ -583,7 +515,7 @@ export const CreateGiveawayPage: React.FC = () => {
                 {...register('end_time')}
                 error={errors.end_time?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
 
               <Input
@@ -592,16 +524,15 @@ export const CreateGiveawayPage: React.FC = () => {
                 {...register('announce_time')}
                 error={errors.announce_time?.message}
                 fullWidth
-                className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
               />
             </CardContent>
           </Card>
 
-          {/* Prizes */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                <CardTitle className="text-2xl font-bold text-red-800 flex items-center">
                   <Trophy className="w-6 h-6 mr-3 text-pink-600" />
                   Prizes
                 </CardTitle>
@@ -629,7 +560,7 @@ export const CreateGiveawayPage: React.FC = () => {
                     </button>
                   )}
 
-                  <h4 className="text-lg font-semibold text-maroon-800 mb-4">Prize {index + 1}</h4>
+                  <h4 className="text-lg font-semibold text-red-800 mb-4">Prize {index + 1}</h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <Input
@@ -640,7 +571,7 @@ export const CreateGiveawayPage: React.FC = () => {
                       })}
                       error={errors.prizes?.[index]?.name?.message}
                       fullWidth
-                      className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                      className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                     />
 
                     <Input
@@ -654,7 +585,7 @@ export const CreateGiveawayPage: React.FC = () => {
                       })}
                       error={errors.prizes?.[index]?.value?.message}
                       fullWidth
-                      className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                      className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                     />
 
                     <Input
@@ -668,33 +599,32 @@ export const CreateGiveawayPage: React.FC = () => {
                       })}
                       error={errors.prizes?.[index]?.quantity?.message}
                       fullWidth
-                      className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                      className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                     />
                   </div>
 
                   <Textarea
                     label="Prize Description (Optional)"
-                    placeholder="Describe this amazing prize..."
-                    rows={2}
+                    placeholder="Describe this amazing prize in detail..."
+                    rows={3}
                     {...register(`prizes.${index}.description`)}
                     error={errors.prizes?.[index]?.description?.message}
                     fullWidth
-                    className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
+                    className="border-pink-200 focus:border-red-400 focus:ring-red-400"
                   />
                 </div>
               ))}
             </CardContent>
           </Card>
 
-          {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               type="button"
               variant="outline"
               size="lg"
               icon={Eye}
-              className="border-2 border-maroon-600 text-maroon-600 hover:bg-maroon-50"
-              onClick={() => toast.success('Preview feature coming soon! ✨')}
+              className="border-2 border-red-600 text-red-600 hover:bg-red-50"
+              onClick={() => toast.success('Preview feature coming soon!')}
             >
               Preview Giveaway
             </Button>
@@ -703,7 +633,7 @@ export const CreateGiveawayPage: React.FC = () => {
               loading={loading}
               size="lg"
               icon={Save}
-              className="bg-gradient-to-r from-maroon-600 to-pink-600 hover:from-maroon-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 px-12"
+              className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 px-12"
             >
               Create Magical Giveaway
             </Button>
