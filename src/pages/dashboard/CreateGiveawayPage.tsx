@@ -1,5 +1,7 @@
+// CreateGiveawayPage.tsx
+
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   Gift,
@@ -16,14 +18,17 @@ import {
   Globe,
   Facebook,
   Mail,
-  CheckCircle
+  CheckCircle,
+  Image as ImageIcon,
+  Video
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input, Textarea } from '../../components/ui/Input'; // Ensure this file has forwardRef implemented for both
+import { Input, Textarea } from '../../components/ui/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { useAuthStore } from '../../stores/authStore';
 import { useGiveawayStore } from '../../stores/giveawayStore';
 import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 interface GiveawayFormData {
   title: string;
@@ -51,8 +56,8 @@ export const CreateGiveawayPage: React.FC = () => {
   const { createGiveaway } = useGiveawayStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
-  // Set default dates for initialization
   const now = new Date();
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const nextWeekPlus1 = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
@@ -67,7 +72,7 @@ export const CreateGiveawayPage: React.FC = () => {
     handleSubmit,
     watch,
     setValue,
-    trigger, // Import trigger for explicit validation
+    trigger,
     formState: { errors }
   } = useForm<GiveawayFormData>({
     defaultValues: {
@@ -95,26 +100,18 @@ export const CreateGiveawayPage: React.FC = () => {
   });
 
   // Watch the required checkboxes to dynamically update validation
-  // This useEffect ensures that if 'required' changes, the 'value' field gets re-validated
   useEffect(() => {
     entryMethodFields.forEach((field, index) => {
       const isRequired = watch(`entry_methods.${index}.required`);
       if (isRequired) {
-        // Trigger validation if the field becomes required and its value might be empty
         trigger(`entry_methods.${index}.value`);
       } else {
-        // If it becomes optional, clear any existing validation errors for the value field
-        // This is a bit more advanced but improves UX
         if (errors.entry_methods?.[index]?.value) {
             trigger(`entry_methods.${index}.value`);
         }
       }
     });
   }, [entryMethodFields, watch, trigger, errors.entry_methods]);
-
-  // THIS IS THE CRITICAL LOG: What does React Hook Form think are the errors?
-  // Check your browser's CONSOLE tab after filling the form, before clicking submit.
-  console.log('--- RHF Errors on Render (before submit):', errors); 
 
   if (!user || profile?.role !== 'organizer') {
     return <Navigate to="/dashboard" replace />;
@@ -136,11 +133,75 @@ export const CreateGiveawayPage: React.FC = () => {
     { value: 'website_visit', label: 'Visit Website', icon: Globe },
   ];
 
+  // Handler for file input change
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+      const maxSize = 10 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Only images (JPG, PNG, GIF) and videos (MP4, WebM) are allowed.');
+        setBannerFile(null);
+        event.target.value = '';
+        return;
+      }
+      if (file.size > maxSize) {
+        toast.error('File size exceeds 10MB limit.');
+        setBannerFile(null);
+        event.target.value = '';
+        return;
+      }
+      setBannerFile(file);
+    } else {
+      setBannerFile(null);
+    }
+  };
+
+  // Function to upload file to Supabase Storage
+  const uploadFileToSupabase = async (file: File): Promise<string | null> => {
+    if (!file) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user?.id}/${Date.now()}.${fileExt}`;
+    const bucketName = 'giveaway-assets';
+
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+      if (publicUrlData) {
+        return publicUrlData.publicUrl;
+      }
+      return null;
+
+    } catch (error: any) {
+      console.error('Error uploading file to Supabase Storage:', error);
+      toast.error(`File upload failed: ${error.message || 'Unknown error'}`);
+      return null;
+    }
+  };
+
   const onSubmit = async (data: GiveawayFormData) => {
-    debugger; // <--- SET THIS BREAKPOINT! Execution MUST pause here.
-    console.log('*** onSubmit function STARTED ***'); // Console log to confirm execution path
+    debugger; 
+    console.log('*** onSubmit function STARTED ***'); 
 
     setLoading(true);
+    let banner_url: string | null = null;
+
     try {
       console.log('Form data being submitted to onSubmit:', data); 
       
@@ -199,27 +260,40 @@ export const CreateGiveawayPage: React.FC = () => {
           required: !!method.required
         };
       });
+
+      // --- NEW: Handle File Upload ---
+      if (bannerFile) {
+        toast.loading('Uploading cover image/video...', { id: 'file-upload' });
+        banner_url = await uploadFileToSupabase(bannerFile);
+        toast.dismiss('file-upload');
+        if (!banner_url) {
+          setLoading(false);
+          return; // Stop submission if file upload failed
+        }
+      }
+      // --- END NEW FILE UPLOAD ---
       
       const giveawayData = {
-        organizer_id: user.id, // Ensure user.id is valid and exists in profiles table
+        organizer_id: user.id,
         title: data.title,
         slug,
         description: data.description,
         rules: data.rules || '',
+        banner_url: banner_url,
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
-        status: 'active' as const, // Ensure status is explicitly 'active'
+        status: 'active' as const,
         entry_config,
         total_entries: 0,
         unique_participants: 0
       };
 
-      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); // Final log before store call
+      console.log('Calling createGiveaway with:', { giveawayData, formattedPrizes }); 
+      console.log('Final data to be sent to createGiveaway:'); 
+      console.log('giveawayData:', giveawayData); 
+      console.log('formattedPrizes:', formattedPrizes);
 
-      // THIS IS THE CALL TO YOUR ZUSTAND STORE'S ACTION
-      // If the debugger doesn't hit the `debugger;` line above, this line is never reached.
-      // If it hits the debugger but doesn't progress past here, the 'await' is hanging.
       await createGiveaway(giveawayData, formattedPrizes); 
 
       toast.success('Giveaway created successfully! ✨');
@@ -323,6 +397,60 @@ export const CreateGiveawayPage: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* NEW: Cover Image/Video Upload Section */}
+          <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-maroon-800 flex items-center">
+                <ImageIcon className="w-6 h-6 mr-3 text-pink-600" />
+                Cover Image / Video (Optional)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <label 
+                  htmlFor="banner-upload" 
+                  className="cursor-pointer bg-gradient-to-r from-pink-500 to-rose-500 text-white py-2 px-4 rounded-lg shadow-md hover:from-pink-600 hover:to-rose-600 transition-all duration-300 flex items-center"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Choose File
+                  <input
+                    id="banner-upload"
+                    type="file"
+                    accept="image/*,video/mp4,video/webm" // Accept images and specific video formats
+                    onChange={handleFileChange}
+                    className="hidden" // Hide the default file input
+                  />
+                </label>
+                {bannerFile ? (
+                  <span className="text-gray-700 text-sm flex items-center">
+                    {bannerFile.type.startsWith('image') ? <ImageIcon className="w-4 h-4 mr-1 text-maroon-600" /> : <Video className="w-4 h-4 mr-1 text-maroon-600" />}
+                    {bannerFile.name}
+                  </span>
+                ) : (
+                  <span className="text-gray-500 text-sm">No file selected (Max 10MB, JPG/PNG/GIF/MP4/WebM)</span>
+                )}
+              </div>
+              {bannerFile && (
+                <div className="flex justify-start">
+                  {bannerFile.type.startsWith('image') ? (
+                    <img 
+                      src={URL.createObjectURL(bannerFile)} 
+                      alt="Cover Preview" 
+                      className="max-w-xs max-h-48 object-cover rounded-lg shadow-md border border-pink-200"
+                    />
+                  ) : (
+                    <video 
+                      src={URL.createObjectURL(bannerFile)} 
+                      controls 
+                      className="max-w-xs max-h-48 object-cover rounded-lg shadow-md border border-pink-200"
+                    />
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          {/* END NEW: Cover Image/Video Upload Section */}
+
           {/* Entry Methods */}
           <Card className="bg-white/90 backdrop-blur-sm border-pink-200 shadow-xl">
             <CardHeader>
@@ -414,7 +542,6 @@ export const CreateGiveawayPage: React.FC = () => {
                         className="rounded border-pink-300 text-maroon-600 focus:ring-maroon-500 h-5 w-5"
                         {...register(`entry_methods.${index}.required`)}
                         onChange={(e) => {
-                          // Only perform side effects here.
                           if (e.target.checked) {
                             trigger(`entry_methods.${index}.value`);
                           } else {
