@@ -16,7 +16,9 @@ import {
   Globe,
   Facebook,
   Mail,
-  CheckCircle
+  CheckCircle,
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input'; // Ensure this file has forwardRef implemented for both
@@ -29,6 +31,7 @@ interface GiveawayFormData {
   title: string;
   description: string;
   rules: string;
+  banner_url?: string;
   start_time: string;
   end_time: string;
   announce_time: string;
@@ -51,6 +54,8 @@ export const CreateGiveawayPage: React.FC = () => {
   const { createGiveaway } = useGiveawayStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Set default dates for initialization
   const now = new Date();
@@ -74,6 +79,7 @@ export const CreateGiveawayPage: React.FC = () => {
       title: '',
       description: '',
       rules: '',
+      banner_url: '',
       start_time: defaultStartTime,
       end_time: defaultEndTime,
       announce_time: defaultAnnounceTime,
@@ -125,6 +131,42 @@ export const CreateGiveawayPage: React.FC = () => {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setBannerImage(base64String);
+        setValue('banner_url', base64String);
+        toast.success('Image uploaded successfully');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeBannerImage = () => {
+    setBannerImage(null);
+    setValue('banner_url', '');
   };
   
   const entryMethodOptions = [
@@ -206,6 +248,7 @@ export const CreateGiveawayPage: React.FC = () => {
         slug,
         description: data.description,
         rules: data.rules || '',
+        banner_url: data.banner_url || null,
         start_time: data.start_time,
         end_time: data.end_time,
         announce_time: data.announce_time,
@@ -301,10 +344,56 @@ export const CreateGiveawayPage: React.FC = () => {
                 className="border-pink-200 focus:border-maroon-400 focus:ring-maroon-400"
               />
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cover Photo (Optional)
+                </label>
+                <div className="border-2 border-dashed border-pink-200 rounded-lg p-6 hover:border-maroon-400 transition-colors duration-200">
+                  {bannerImage ? (
+                    <div className="relative">
+                      <img
+                        src={bannerImage}
+                        alt="Cover preview"
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeBannerImage}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer">
+                      <Upload className="w-12 h-12 text-pink-400 mb-3" />
+                      <span className="text-sm font-medium text-maroon-700 mb-1">
+                        Click to upload cover image
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        PNG, JPG up to 5MB
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  )}
+                  {uploadingImage && (
+                    <div className="text-center mt-2 text-sm text-maroon-600">
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <Textarea
                 label="Description"
-                placeholder="Describe your magical giveaway and what makes it special..."
-                rows={4}
+                placeholder="Describe your magical giveaway and what makes it special...\n\nYou can write as much detail as you need. Share the story behind your giveaway, what makes it special, and why people should participate!"
+                rows={8}
                 {...register('description', { required: 'Description is required' })}
                 error={errors.description?.message}
                 fullWidth
@@ -313,8 +402,8 @@ export const CreateGiveawayPage: React.FC = () => {
 
               <Textarea
                 label="Rules & Terms (Optional)"
-                placeholder="Enter the rules and terms for your giveaway..."
-                rows={3}
+                placeholder="Enter the rules and terms for your giveaway...\n\nInclude eligibility requirements, how winners will be selected, prize delivery details, and any other important terms."
+                rows={6}
                 {...register('rules')}
                 error={errors.rules?.message}
                 fullWidth
