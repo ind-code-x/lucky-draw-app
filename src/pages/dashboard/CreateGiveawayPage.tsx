@@ -173,8 +173,23 @@ export const CreateGiveawayPage: React.FC = () => {
   ];
 
   const onSubmit = async (data: GiveawayFormData) => {
+    console.log('Form submitted with data:', data);
     setLoading(true);
     try {
+      // Validate user is logged in
+      if (!user || !user.id) {
+        toast.error('You must be logged in to create a giveaway');
+        setLoading(false);
+        return;
+      }
+
+      // Validate organizer role
+      if (profile?.role !== 'organizer') {
+        toast.error('Only organizers can create giveaways');
+        setLoading(false);
+        return;
+      }
+
       const invalidEntryMethods = data.entry_methods.filter(
         method => method.required && !method.value
       );
@@ -244,14 +259,38 @@ export const CreateGiveawayPage: React.FC = () => {
         unique_participants: 0
       };
 
+      console.log('Creating giveaway with data:', {
+        titleLength: giveawayData.title.length,
+        descriptionLength: giveawayData.description.length,
+        rulesLength: giveawayData.rules?.length || 0,
+        prizesCount: formattedPrizes.length,
+        hasBanner: !!giveawayData.banner_url
+      });
+
       await createGiveaway(giveawayData, formattedPrizes);
 
       toast.success('Giveaway created successfully!');
       navigate('/dashboard');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create giveaway error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create giveaway');
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create giveaway';
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      if (error?.code === 'PGRST116') {
+        errorMessage = 'User profile not found. Please complete your profile first.';
+      }
+      if (error?.code === '23503') {
+        errorMessage = 'Invalid user or missing profile. Please log in again.';
+      }
+      if (error?.code === '23505') {
+        errorMessage = 'A giveaway with this title already exists. Please use a different title.';
+      }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
