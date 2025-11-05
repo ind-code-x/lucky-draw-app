@@ -353,6 +353,7 @@ export const CreateGiveawayPage: React.FC = () => {
             <CardContent className="space-y-6">
               <Input
                 label="Giveaway Title"
+                id="title"
                 placeholder="Enter an enchanting title for your giveaway"
                 {...register('title', { required: 'Title is required' })}
                 error={errors.title?.message}
@@ -391,10 +392,13 @@ export const CreateGiveawayPage: React.FC = () => {
                       </span>
                       <input
                         type="file"
+                        id="banner_upload"
+                        name="banner_upload"
                         accept="image/*"
                         onChange={handleImageUpload}
                         className="hidden"
                         disabled={uploadingImage}
+                        aria-label="Upload cover image"
                       />
                     </label>
                   )}
@@ -408,6 +412,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
               <Textarea
                 label="Description"
+                id="description"
                 placeholder="Describe your magical giveaway and what makes it special. You can write as much detail as you need!"
                 rows={8}
                 {...register('description', { required: 'Description is required' })}
@@ -418,6 +423,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
               <Textarea
                 label="Rules & Terms (Optional)"
+                id="rules"
                 placeholder="Enter the rules and terms for your giveaway. Include eligibility requirements, how winners will be selected, prize delivery details, and any other important terms."
                 rows={6}
                 {...register('rules')}
@@ -471,8 +477,9 @@ export const CreateGiveawayPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Method Type</label>
+                        <label htmlFor={`entry-method-type-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Method Type</label>
                         <select
+                          id={`entry-method-type-${index}`}
                           {...register(`entry_methods.${index}.type`)}
                           className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:border-red-400 focus:ring-red-400 bg-white"
                         >
@@ -486,6 +493,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
                       <Input
                         label={`Value ${isRequired ? '(Required)' : '(Optional)'}`}
+                        id={`entry-method-value-${index}`}
                         placeholder={methodType.includes('instagram') ? "@username or URL" :
                           methodType.includes('website') ? "https://yourwebsite.com" :
                             "Profile URL or identifier"}
@@ -499,6 +507,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
                       <Input
                         label="Points"
+                        id={`entry-method-points-${index}`}
                         type="number"
                         min="1"
                         {...register(`entry_methods.${index}.points`, {
@@ -541,6 +550,7 @@ export const CreateGiveawayPage: React.FC = () => {
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Input
                 label="Start Date & Time"
+                id="start_time"
                 type="datetime-local"
                 {...register('start_time')}
                 error={errors.start_time?.message}
@@ -550,6 +560,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
               <Input
                 label="End Date & Time"
+                id="end_time"
                 type="datetime-local"
                 {...register('end_time')}
                 error={errors.end_time?.message}
@@ -559,6 +570,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
               <Input
                 label="Winner Announcement"
+                id="announce_time"
                 type="datetime-local"
                 {...register('announce_time')}
                 error={errors.announce_time?.message}
@@ -604,6 +616,7 @@ export const CreateGiveawayPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <Input
                       label="Prize Name"
+                      id={`prize-name-${index}`}
                       placeholder="e.g., iPhone 15 Pro"
                       {...register(`prizes.${index}.name`, {
                         required: 'Prize name is required'
@@ -615,6 +628,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
                     <Input
                       label="Value"
+                      id={`prize-value-${index}`}
                       type="number"
                       step="0.01"
                       placeholder="0.00"
@@ -629,6 +643,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
                     <Input
                       label="Quantity"
+                      id={`prize-quantity-${index}`}
                       type="number"
                       min="1"
                       placeholder="1"
@@ -644,6 +659,7 @@ export const CreateGiveawayPage: React.FC = () => {
 
                   <Textarea
                     label="Prize Description (Optional)"
+                    id={`prize-description-${index}`}
                     placeholder="Describe this amazing prize in detail..."
                     rows={3}
                     {...register(`prizes.${index}.description`)}
