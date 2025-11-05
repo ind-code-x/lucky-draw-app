@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Giveaway Creation</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 300px;
+    }
+    #output {
+      background: #f4f4f4;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Giveaway Creation</h1>
+
+  <div class="section">
+    <h2>Step 1: Sign Up</h2>
+    <input type="text" id="username" placeholder="Username" value="umamahesh">
+    <input type="email" id="email" placeholder="Email" value="umamahesh.dsops@gmail.com">
+    <input type="password" id="password" placeholder="Password" value="Mahi432">
+    <select id="role">
+      <option value="participant">Participant</option>
+      <option value="organizer" selected>Organizer</option>
+    </select>
+    <button onclick="signUp()">Sign Up</button>
+  </div>
+
+  <div class="section">
+    <h2>Step 2: Sign In</h2>
+    <input type="email" id="loginEmail" placeholder="Email" value="umamahesh.dsops@gmail.com">
+    <input type="password" id="loginPassword" placeholder="Password" value="Mahi432">
+    <button onclick="signIn()">Sign In</button>
+  </div>
+
+  <div class="section">
+    <h2>Step 3: Test Giveaway Creation</h2>
+    <button onclick="testGiveawayCreation()">Create Test Giveaway</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://zsjcwtasxwtjwfrpemyc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzamN3dGFzeHd0andmcnBlbXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTI1ODUsImV4cCI6MjA3NzkyODU4NX0.uvYKp6klCY1urov-c1cJuSQqv5IXjcu3GRA12kaegmg';
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+
+    function log(message) {
+      const output = document.getElementById('output');
+      output.textContent += message + '\n\n';
+      console.log(message);
+    }
+
+    async function signUp() {
+      try {
+        const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const role = document.getElementById('role').value;
+
+        log('Attempting to sign up...');
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username,
+              role
+            }
+          }
+        });
+
+        if (error) {
+          log('Signup error: ' + error.message);
+          return;
+        }
+
+        if (data.user && !data.session) {
+          log('✅ Account created! Email confirmation required. Please check your email: ' + email);
+          log('After confirming, use the Sign In button below.');
+        } else if (data.user && data.session) {
+          currentUser = data.user;
+          log('✅ Account created and signed in immediately!');
+          log('User ID: ' + data.user.id);
+
+          // Create profile
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email,
+              username,
+              role,
+            });
+
+          if (profileError) {
+            log('Profile creation error: ' + profileError.message);
+          } else {
+            log('✅ Profile created successfully!');
+          }
+        }
+      } catch (err) {
+        log('Exception: ' + err.message);
+      }
+    }
+
+    async function signIn() {
+      try {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        log('Attempting to sign in...');
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          log('Sign in error: ' + error.message);
+          if (error.message.includes('Email not confirmed')) {
+            log('❌ Please confirm your email first. Check your inbox for the confirmation link.');
+          }
+          return;
+        }
+
+        currentUser = data.user;
+        log('✅ Signed in successfully!');
+        log('User ID: ' + data.user.id);
+        log('Email: ' + data.user.email);
+      } catch (err) {
+        log('Exception: ' + err.message);
+      }
+    }
+
+    async function testGiveawayCreation() {
+      try {
+        if (!currentUser) {
+          log('❌ Please sign in first!');
+          return;
+        }
+
+        log('Testing giveaway creation with your content...');
+
+        const testData = {
+          organizer_id: currentUser.id,
+          title: 'Win ₹1000 Amazon Shopping Spree Giveaway!',
+          slug: 'win-1000-amazon-shopping-spree-giveaway',
+          description: `Get ready for a treat! We're giving one lucky winner a ₹1000 Amazon Gift Voucher!
+
+Imagine what you could buy—a new book, some cool tech accessories, or maybe just stock up on your daily essentials. The choice is completely yours! This is our way of saying thank you for your support. It's the perfect chance to give your wallet a little break and indulge in some much-deserved shopping. Don't miss out on this magical opportunity to win instant Amazon cash!`,
+          rules: `Official Giveaway Rules:
+
+1. Follow our page/account (e.g., on Instagram, Facebook, etc.).
+2. Like the official giveaway post.
+3. Tag 2 friends in the comments who would love to win.`,
+          banner_url: null,
+          start_time: new Date().toISOString(),
+          end_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          announce_time: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'active',
+          entry_config: {
+            instagram_follow: {
+              enabled: true,
+              points: 5,
+              value: '@youraccount',
+              required: false
+            }
+          },
+          total_entries: 0,
+          unique_participants: 0
+        };
+
+        log('Creating giveaway...');
+        log('Title length: ' + testData.title.length);
+        log('Description length: ' + testData.description.length);
+        log('Rules length: ' + testData.rules.length);
+
+        const { data: giveaway, error: giveawayError } = await supabase
+          .from('giveaways')
+          .insert(testData)
+          .select()
+          .single();
+
+        if (giveawayError) {
+          log('❌ Giveaway creation error: ' + giveawayError.message);
+          log('Error code: ' + giveawayError.code);
+          log('Error details: ' + JSON.stringify(giveawayError, null, 2));
+          return;
+        }
+
+        log('✅ Giveaway created successfully!');
+        log('Giveaway ID: ' + giveaway.id);
+
+        // Create prize
+        const prizeData = {
+          giveaway_id: giveaway.id,
+          name: '₹1000 Amazon Gift Voucher',
+          description: `Terms and Conditions:
+
+1. This giveaway is open to residents of India only.
+2. The giveaway ends on [Insert Date] at [02-11-2025, 11:59 PM IST].
+3. The winner will be selected randomly and announced on [03-11-2025].
+4. The prize is a ₹1000 Amazon Gift Voucher (India), delivered digitally.
+5. Entrants must comply with all rules to be eligible. Per rules, this promotion is in no way sponsored, endorsed, or administered by, or associated with, Amazon.`,
+          value: 1000,
+          quantity: 1
+        };
+
+        log('Creating prize...');
+        const { data: prize, error: prizeError } = await supabase
+          .from('prizes')
+          .insert(prizeData)
+          .select()
+          .single();
+
+        if (prizeError) {
+          log('❌ Prize creation error: ' + prizeError.message);
+          return;
+        }
+
+        log('✅ Prize created successfully!');
+        log('Prize ID: ' + prize.id);
+        log('\n🎉 TEST COMPLETE! All data with multiple words and special characters (₹) worked perfectly!');
+
+      } catch (err) {
+        log('Exception: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
