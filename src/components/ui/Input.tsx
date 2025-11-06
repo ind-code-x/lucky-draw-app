@@ -13,18 +13,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({
     label,
     error,
-    icon: Icon,
+    icon: Icon, // Destructure icon as Icon for component rendering
     fullWidth = false,
     className = '',
-    id,
-    name,
     ...props
-  }, ref) => {
-    const inputId = id || name;
+  }, ref) => { // 'ref' is the second argument from forwardRef
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
@@ -33,10 +30,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           )}
           <input
-            {...props}
-            ref={ref}
-            id={inputId}
-            name={name}
+            ref={ref} // THIS IS THE CRUCIAL FIX: Pass the ref to the native input element
             className={`
               block w-full rounded-lg border-gray-300 shadow-sm
               focus:border-primary-500 focus:ring-primary-500
@@ -46,6 +40,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               ${error ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}
               ${className}
             `}
+            id={props.id || props.name} // Good practice for accessibility (linking label to input)
+            {...props}
           />
         </div>
         {error && (
@@ -72,23 +68,17 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     error,
     fullWidth = false,
     className = '',
-    id,
-    name,
     ...props
-  }, ref) => {
-    const inputId = id || name;
+  }, ref) => { // 'ref' is the second argument from forwardRef
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
         <textarea
-          {...props}
-          ref={ref}
-          id={inputId}
-          name={name}
+          ref={ref} // THIS IS THE CRUCIAL FIX: Pass the ref to the native textarea element
           className={`
             block w-full rounded-lg border-gray-300 shadow-sm
             focus:border-primary-500 focus:ring-primary-500
@@ -97,6 +87,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             ${error ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}
             ${className}
           `}
+          id={props.id || props.name} // Good practice for accessibility
+          {...props}
         />
         {error && (
           <p className="mt-1 text-sm text-error-600">{error}</p>
