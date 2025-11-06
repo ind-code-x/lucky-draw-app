@@ -13,15 +13,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({
     label,
     error,
-    icon: Icon, // Destructure icon as Icon for component rendering
+    icon: Icon,
     fullWidth = false,
     className = '',
+    id,
+    name,
     ...props
-  }, ref) => { // 'ref' is the second argument from forwardRef
+  }, ref) => {
+    const inputId = id || name;
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
@@ -32,7 +35,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             {...props}
             ref={ref}
-            id={props.id || props.name}
+            id={inputId}
+            name={name}
             className={`
               block w-full rounded-lg border-gray-300 shadow-sm
               focus:border-primary-500 focus:ring-primary-500
@@ -68,19 +72,23 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     error,
     fullWidth = false,
     className = '',
+    id,
+    name,
     ...props
-  }, ref) => { // 'ref' is the second argument from forwardRef
+  }, ref) => {
+    const inputId = id || name;
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
         <textarea
           {...props}
           ref={ref}
-          id={props.id || props.name}
+          id={inputId}
+          name={name}
           className={`
             block w-full rounded-lg border-gray-300 shadow-sm
             focus:border-primary-500 focus:ring-primary-500
