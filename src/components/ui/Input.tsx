@@ -18,10 +18,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     className = '',
     ...props
   }, ref) => { // 'ref' is the second argument from forwardRef
+    // Explicitly pick out common form props so they are forwarded correctly
+    const { id, name, onChange, onBlur, value, defaultValue, ...rest } = props as any;
+    const idAttr = id || name;
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={idAttr} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
@@ -40,8 +43,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               ${error ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}
               ${className}
             `}
-            id={props.id || props.name} // Good practice for accessibility (linking label to input)
-            {...props}
+            id={idAttr} // Good practice for accessibility (linking label to input)
+            name={name}
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
+            defaultValue={defaultValue}
+            {...rest}
           />
         </div>
         {error && (
@@ -70,10 +78,12 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     className = '',
     ...props
   }, ref) => { // 'ref' is the second argument from forwardRef
+    const { id, name, onChange, onBlur, value, defaultValue, ...rest } = props as any;
+    const idAttr = id || name;
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
-          <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={idAttr} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
@@ -87,8 +97,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             ${error ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}
             ${className}
           `}
-          id={props.id || props.name} // Good practice for accessibility
-          {...props}
+          id={idAttr} // Good practice for accessibility
+          name={name}
+          onChange={onChange}
+          onBlur={onBlur}
+          value={value}
+          defaultValue={defaultValue}
+          {...rest}
         />
         {error && (
           <p className="mt-1 text-sm text-error-600">{error}</p>
