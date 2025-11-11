@@ -410,27 +410,31 @@ export const CreateGiveawayPage: React.FC = () => {
                 </div>
               </div>
 
-              <Textarea
-                label="Description"
-                id="description"
-                placeholder="Describe your magical giveaway and what makes it special. You can write as much detail as you need!"
-                rows={8}
-                {...register('description', { required: 'Description is required' })}
-                error={errors.description?.message}
-                fullWidth
-                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
-              />
+              {/* Description: use native textarea to ensure multi-line values are preserved */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  id="description"
+                  placeholder="Describe your magical giveaway and what makes it special. You can write as much detail as you need!"
+                  rows={8}
+                  {...register('description', { required: 'Description is required' })}
+                  className={`w-full px-4 py-3 border rounded-lg focus:border-red-400 focus:ring-red-400 ${errors.description ? 'border-red-500' : 'border-pink-200'}`}
+                />
+                {errors.description?.message && <p className="mt-2 text-sm text-red-600">{errors.description.message}</p>}
+              </div>
 
-              <Textarea
-                label="Rules & Terms (Optional)"
-                id="rules"
-                placeholder="Enter the rules and terms for your giveaway. Include eligibility requirements, how winners will be selected, prize delivery details, and any other important terms."
-                rows={6}
-                {...register('rules')}
-                error={errors.rules?.message}
-                fullWidth
-                className="border-pink-200 focus:border-red-400 focus:ring-red-400"
-              />
+              {/* Rules: use native textarea to preserve newlines */}
+              <div>
+                <label htmlFor="rules" className="block text-sm font-medium text-gray-700 mb-2">Rules & Terms (Optional)</label>
+                <textarea
+                  id="rules"
+                  placeholder="Enter the rules and terms for your giveaway. Include eligibility requirements, how winners will be selected, prize delivery details, and any other important terms."
+                  rows={6}
+                  {...register('rules')}
+                  className={`w-full px-4 py-3 border rounded-lg focus:border-red-400 focus:ring-red-400 ${errors.rules ? 'border-red-500' : 'border-pink-200'}`}
+                />
+                {errors.rules?.message && <p className="mt-2 text-sm text-red-600">{errors.rules.message}</p>}
+              </div>
             </CardContent>
           </Card>
 
